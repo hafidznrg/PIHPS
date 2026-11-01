@@ -22,7 +22,7 @@ GitHub Actions (cron harian)
 
 - [x] Identifikasi sumber & endpoint — lihat [docs/api-notes.md](docs/api-notes.md)
 - [x] Probe akses dari GitHub Actions (lihat temuan di docs/api-notes.md)
-- [ ] Extractor harian → raw
+- [x] Extractor harian → raw — lihat [docs/raw-layout.md](docs/raw-layout.md)
 - [ ] Staging & marts (dbt)
 - [ ] Alerting & freshness
 - [ ] Backfill historis
@@ -34,4 +34,14 @@ GitHub Actions (cron harian)
 uv sync
 uv run pytest
 uv run python -m pihps.probe   # butuh env R2_* dan TELEGRAM_* untuk cek lengkap
+
+# Extractor: default 7 hari terakhir s.d. hari ini (WIB), 4 jenis pasar, semua level
+uv run python -m pihps.extract                      # tulis ke R2 (butuh env R2_*)
+uv run python -m pihps.extract --local-dir data/    # tulis ke disk lokal, tanpa R2
+uv run python -m pihps.extract --start 2017-06-01 --end 2017-12-31 \
+    --price-types 1 --levels nasional,provinsi      # backfill, otomatis dipecah per bulan
 ```
+
+Exit code 1 bila ada wilayah yang gagal, silent failure (respons nasional pasar tradisional
+kosong), atau manifest gagal ditulis; 2 untuk argumen tidak valid. Workflow
+[`extract`](.github/workflows/extract.yml) berjalan setiap hari pukul 18:23 WIB.

@@ -6,9 +6,11 @@ Lihat docs/api-notes.md untuk dokumentasi parameter dan bentuk respons.
 
 from __future__ import annotations
 
+import json
 import logging
 import time
-from datetime import date
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from typing import Any
 
 import httpx
@@ -19,7 +21,29 @@ log = logging.getLogger(__name__)
 
 
 class PihpsError(RuntimeError):
-    pass
+    def __init__(
+        self, message: str, *, status_code: int | None = None, url: str | None = None
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.url = url
+
+
+_RETRYABLE_STATUS = (429, 500, 502, 503, 504)
+
+
+@dataclass(frozen=True)
+class RawResponse:
+    """Respons mentah apa adanya, plus metadata untuk manifest."""
+
+    endpoint: str
+    url: str  # URL lengkap termasuk query string
+    params: dict[str, Any]
+    status_code: int
+    body: bytes  # byte respons persis seperti dari server
+    payload: dict[str, Any]  # hasil json.loads(body), hanya untuk validasi/hitung
+    fetched_at: datetime  # UTC, saat respons diterima
+    elapsed_s: float
 
 
 class PihpsClient:
@@ -27,8 +51,9 @@ class PihpsClient:
         self,
         *,
         timeout: float = 60.0,
-        min_interval: float = 1.0,
+        min_interval: float = 1.5,
         max_retries: int = 4,
+        transport: httpx.BaseTransport | None = None,
     ) -> None:
         self._http = httpx.Client(
             timeout=timeout,
@@ -39,10 +64,12 @@ class PihpsClient:
                 "Referer": f"{BASE_URL}/TabelHarga/PasarTradisionalDaerah",
             },
             follow_redirects=False,
+            transport=transport,
         )
         self._min_interval = min_interval
         self._max_retries = max_retries
         self._last_call = 0.0
+        self.n_requests = 0  # termasuk retry
 
     def close(self) -> None:
         self._http.close()
@@ -54,7 +81,12 @@ class PihpsClient:
         self.close()
 
     # ------------------------------------------------------------------ core
-    def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    def fetch(self, endpoint: str, params: dict[str, Any] | None = None) -> RawResponse:
+        """GET dengan jeda minimum antar-request dan retry ber-backoff.
+
+        Mengembalikan byte respons apa adanya. Melempar PihpsError (dengan status_code
+        bila ada) kalau gagal setelah semua retry atau bentuk respons bukan {"data": ...}.
+        """
         url = f"{API_PREFIX}/{endpoint}"
         params = {k: ("" if v is None else v) for k, v in (params or {}).items()}
         for attempt in range(1, self._max_retries + 1):
@@ -62,34 +94,66 @@ class PihpsClient:
             if wait > 0:
                 time.sleep(wait)
             self._last_call = time.monotonic()
+            self.n_requests += 1
             try:
+                t0 = time.monotonic()
                 resp = self._http.get(url, params=params)
-                if resp.status_code in (429, 500, 502, 503, 504):
-                    raise PihpsError(f"HTTP {resp.status_code}")
+                elapsed = time.monotonic() - t0
+                full_url = str(resp.request.url)
+                if resp.status_code in _RETRYABLE_STATUS:
+                    raise PihpsError(
+                        f"HTTP {resp.status_code}", status_code=resp.status_code, url=full_url
+                    )
                 if resp.status_code != 200:
                     # 3xx biasanya redirect ke halaman error, jangan di-retry.
                     raise PihpsError(
                         f"HTTP {resp.status_code} untuk {endpoint} "
-                        f"(location={resp.headers.get('location')})"
+                        f"(location={resp.headers.get('location')})",
+                        status_code=resp.status_code,
+                        url=full_url,
                     )
-                payload = resp.json()
+                body = resp.content
+                try:
+                    payload = json.loads(body)
+                except ValueError as exc:
+                    raise PihpsError(
+                        f"Respons {endpoint} bukan JSON: {body[:200]!r}",
+                        status_code=resp.status_code,
+                        url=full_url,
+                    ) from exc
                 if not isinstance(payload, dict) or "data" not in payload:
                     raise PihpsError(
-                        f"Bentuk respons tak terduga dari {endpoint}: {str(payload)[:200]}"
+                        f"Bentuk respons tak terduga dari {endpoint}: {str(payload)[:200]}",
+                        status_code=resp.status_code,
+                        url=full_url,
                     )
-                return payload
-            except (httpx.TransportError, PihpsError, ValueError) as exc:
-                retryable = (
-                    isinstance(exc, httpx.TransportError)
-                    or "HTTP 5" in str(exc)
-                    or "429" in str(exc)
+                return RawResponse(
+                    endpoint=endpoint,
+                    url=full_url,
+                    params=params,
+                    status_code=resp.status_code,
+                    body=body,
+                    payload=payload,
+                    fetched_at=datetime.now(UTC),
+                    elapsed_s=round(elapsed, 3),
+                )
+            except (httpx.TransportError, PihpsError) as exc:
+                retryable = isinstance(exc, httpx.TransportError) or (
+                    isinstance(exc, PihpsError) and exc.status_code in _RETRYABLE_STATUS
                 )
                 if not retryable or attempt == self._max_retries:
+                    if isinstance(exc, httpx.TransportError):
+                        raise PihpsError(
+                            f"{type(exc).__name__}: {exc}", url=str(exc.request.url)
+                        ) from exc
                     raise
                 backoff = 2**attempt
                 log.warning("%s gagal (%s), retry %d dalam %ds", endpoint, exc, attempt, backoff)
                 time.sleep(backoff)
         raise AssertionError("unreachable")
+
+    def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.fetch(endpoint, params).payload
 
     # ------------------------------------------------------------- referensi
     def ref_price_types(self) -> dict[str, Any]:
@@ -130,14 +194,38 @@ class PihpsClient:
         """
         return self._get(
             "GetGridDataDaerah",
-            {
-                "price_type_id": price_type_id,
-                "comcat_id": comcat_id,
-                "province_id": province_id,
-                "regency_id": regency_id,
-                "market_id": market_id,
-                "tipe_laporan": tipe_laporan,
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
-            },
+            grid_daerah_params(
+                price_type_id=price_type_id,
+                start_date=start_date,
+                end_date=end_date,
+                province_id=province_id,
+                regency_id=regency_id,
+                market_id=market_id,
+                comcat_id=comcat_id,
+                tipe_laporan=tipe_laporan,
+            ),
         )
+
+
+def grid_daerah_params(
+    *,
+    price_type_id: int,
+    start_date: date,
+    end_date: date,
+    province_id: int | str = "",
+    regency_id: int | str = "",
+    market_id: int | str = "",
+    comcat_id: str = "",
+    tipe_laporan: int = 1,
+) -> dict[str, Any]:
+    """Parameter query GetGridDataDaerah, urutan sama seperti yang dikirim browser."""
+    return {
+        "price_type_id": price_type_id,
+        "comcat_id": comcat_id,
+        "province_id": province_id,
+        "regency_id": regency_id,
+        "market_id": market_id,
+        "tipe_laporan": tipe_laporan,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+    }

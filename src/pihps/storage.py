@@ -33,6 +33,24 @@ class R2Storage:
         self._s3.put_object(Bucket=self.bucket, Key=key, Body=body, **extra)
         return len(body)
 
+    def put_bytes(
+        self,
+        key: str,
+        body: bytes,
+        *,
+        content_type: str = "application/octet-stream",
+        metadata: dict[str, str] | None = None,
+    ) -> int:
+        """Tulis byte apa adanya (tanpa ContentEncoding, jadi tidak di-dekompres otomatis)."""
+        self._s3.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=body,
+            ContentType=content_type,
+            Metadata=metadata or {},
+        )
+        return len(body)
+
     def head(self, key: str) -> dict[str, Any]:
         return self._s3.head_object(Bucket=self.bucket, Key=key)
 
