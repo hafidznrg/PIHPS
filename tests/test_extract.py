@@ -107,10 +107,13 @@ REGENCIES = {
 def make_server(
     *,
     fail: set[tuple[str, str]] | None = None,
+    empty: set[str] | None = None,
     empty_national: bool = False,
 ):
-    """`fail`: set (endpoint, province_id|regency_id) yang dibalas HTTP 404."""
+    """`fail`: set (endpoint, province_id|regency_id) yang dibalas HTTP 404.
+    `empty`: province_id|regency_id yang dibalas HTTP 200 `{"data":[{}]}`."""
     fail = fail or set()
+    empty = empty or set()
     calls: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -129,6 +132,8 @@ def make_server(
         if ep == "GetGridDataDaerah":
             if (ep, q["regency_id"] or q["province_id"]) in fail:
                 return httpx.Response(404, content=b"not found")
+            if (q["regency_id"] or q["province_id"]) in empty:
+                return httpx.Response(200, content=b'{"data":[{}]}')
             national = not q["province_id"]
             if national and empty_national and q["price_type_id"] == "1":
                 return httpx.Response(200, content=b'{"data":[{}]}')
@@ -289,3 +294,60 @@ def test_client_does_not_retry_4xx(monkeypatch):
         client.fetch("GetRefProvince")
     assert ei.value.status_code == 302
     assert client.n_requests == 1
+
+
+# ------------------------------------------- silent failure: rasio gagal + kosong
+PROV_IDS = [str(p["id"]) for p in json.loads(PROVINCES)["data"]]
+
+
+def run_provinsi(tmp_path, **server):
+    handler, _ = make_server(**server)
+    # 1 nasional + 34 provinsi = 35 request harga
+    return run_extractor(tmp_path, handler, price_types=[1], levels=["nasional", "provinsi"])
+
+
+def test_empty_below_threshold_is_success(tmp_path):
+    m = run_provinsi(tmp_path, empty=set(PROV_IDS[:3]))  # 3/35 = 8,6%
+    s = m["summary"]
+    assert m["status"] == "success"
+    assert s["grid_requests"] == 35
+    assert s["grid_empty_by_level"] == {"nasional": 0, "provinsi": 3, "kabkota": 0}
+    assert s["empty_or_failed_ratio"] == round(3 / 35, 4)
+    assert m["silent_failures"] == []
+
+
+def test_empty_above_threshold_is_failed(tmp_path):
+    m = run_provinsi(tmp_path, empty=set(PROV_IDS[:4]))  # 4/35 = 11,4%
+    assert m["summary"]["failed"] == 0
+    assert m["status"] == "failed"
+    [sf] = m["silent_failures"]
+    assert sf["reason"].startswith("0 gagal + 4 kosong dari 35 request")
+
+
+def test_failed_and_empty_are_summed(tmp_path):
+    m = run_provinsi(
+        tmp_path,
+        empty=set(PROV_IDS[:2]),
+        fail={("GetGridDataDaerah", PROV_IDS[2]), ("GetGridDataDaerah", PROV_IDS[3])},
+    )
+    s = m["summary"]
+    assert (s["grid_failed"], s["grid_empty_by_level"]["provinsi"]) == (2, 2)
+    assert any(sf["reason"].startswith("2 gagal + 2 kosong") for sf in m["silent_failures"])
+
+
+def test_empty_kabkota_counted_and_regencies_reported(tmp_path):
+    handler, _ = make_server(empty={"60"})
+    m = run_extractor(tmp_path, handler)
+    s = m["summary"]
+    # Kota Bandung kosong di pasar tradisional dan modern
+    assert s["grid_empty_by_level"]["kabkota"] == 2
+    assert s["regencies_by_price_type"] == {"pasar_tradisional": 3, "pasar_modern": 1}
+    # 2 / (2 x 35 + 4) < 10%
+    assert m["status"] == "success"
+
+
+def test_telegram_html_is_escaped():
+    from pihps.extract import to_telegram_html
+
+    out = to_telegram_html("❌ judul <x>\nerror: <html> & lain")
+    assert out == "<b>❌ judul &lt;x&gt;</b>\nerror: &lt;html&gt; &amp; lain"
