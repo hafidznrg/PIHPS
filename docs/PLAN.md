@@ -1,6 +1,6 @@
 # Rencana Project PIHPS Harga Pangan
 
-_Dokumen hidup. Terakhir diperbarui: 1 Nov 2026 (F1 run e2e). Perbarui bagian **Status** dan **Log keputusan**
+_Dokumen hidup. Terakhir diperbarui: 1 Nov 2026 (F1 selesai). Perbarui bagian **Status** dan **Log keputusan**
 setiap kali fase selesai atau keputusan berubah._
 
 ## Ringkasan
@@ -21,7 +21,7 @@ mudah dipahami masyarakat awam.
 | Fase | Isi | Status |
 | --- | --- | --- |
 | F0 Fondasi | Repo, endpoint terdokumentasi, probe lolos 18/19 dari runner GitHub, R2 & Telegram siap | Selesai 1 Nov |
-| F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Menunggu review: PR terbuka, run e2e 1 Nov lolos (685/685 request, 17 menit, 686 objek di R2, Telegram terkirim) |
+| F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian aktif mulai 2 Nov |
 | F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Belum |
 | F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Belum |
 | F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Belum |
