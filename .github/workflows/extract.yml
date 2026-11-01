@@ -2,9 +2,10 @@ name: extract
 
 # Extractor harian: PIHPS -> R2 raw/. Default 7 hari terakhir s.d. hari ini (WIB) supaya
 # revisi data dari BI ikut tertangkap. workflow_dispatch bisa dipakai untuk backfill kecil.
+# Ringkasan Telegram selalu dikirim (sukses maupun gagal): ketiadaan pesan = cron tidak jalan.
 on:
   schedule:
-    - cron: "23 11 * * *" # 18:23 WIB
+    - cron: "0 8 * * *" # 15.00 WIB
   workflow_dispatch:
     inputs:
       start:
@@ -54,7 +55,7 @@ jobs:
           IN_PRICE_TYPES: ${{ inputs.price_types || '1,2,3,4' }}
           IN_LEVELS: ${{ inputs.levels || 'nasional,provinsi,kabkota' }}
         run: |
-          args=(--price-types "$IN_PRICE_TYPES" --levels "$IN_LEVELS")
+          args=(--notify always --price-types "$IN_PRICE_TYPES" --levels "$IN_LEVELS")
           [ -n "$IN_START" ] && args+=(--start "$IN_START")
           [ -n "$IN_END" ] && args+=(--end "$IN_END")
           uv run python -m pihps.extract "${args[@]}"
@@ -67,7 +68,7 @@ jobs:
           path: extract_manifest.json
           if-no-files-found: ignore
 
-      # Extractor sudah mengirim ringkasan ke Telegram saat gagal; ini jaring pengaman
+      # Extractor sudah mengirim ringkasan ke Telegram di setiap run; ini jaring pengaman
       # untuk kegagalan sebelum extractor jalan (install, secret hilang, timeout).
       - name: Alert on crash
         if: failure() && hashFiles('extract_manifest.json') == ''
