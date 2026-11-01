@@ -1,6 +1,6 @@
 # Rencana Project PIHPS Harga Pangan
 
-_Dokumen hidup. Terakhir diperbarui: 1 Nov 2026. Perbarui bagian **Status** dan **Log keputusan**
+_Dokumen hidup. Terakhir diperbarui: 1 Nov 2026 (F1 run e2e). Perbarui bagian **Status** dan **Log keputusan**
 setiap kali fase selesai atau keputusan berubah._
 
 ## Ringkasan
@@ -21,7 +21,7 @@ mudah dipahami masyarakat awam.
 | Fase | Isi | Status |
 | --- | --- | --- |
 | F0 Fondasi | Repo, endpoint terdokumentasi, probe lolos 18/19 dari runner GitHub, R2 & Telegram siap | Selesai 1 Nov |
-| F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Sedang dikerjakan (branch `claude/pihps-phase-1-extractor-*`, belum ada PR) |
+| F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Menunggu review: PR terbuka, run e2e 1 Nov lolos (685/685 request, 17 menit, 686 objek di R2, Telegram terkirim) |
 | F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Belum |
 | F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Belum |
 | F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Belum |
@@ -62,12 +62,25 @@ Endpoint JSON internal PIHPS (tidak resmi), detail di `docs/api-notes.md`.
 | --- | --- | --- |
 | Jenis pasar | 4: Tradisional, Modern, Pedagang Besar, Produsen | `price_type_id` 1–4 terkonfirmasi |
 | Komoditas | 10 kategori, 21 komoditas | Satuan menurut API: kg |
-| Wilayah | Nasional, 34 provinsi, kab/kota | Level pasar tidak dipublikasikan |
+| Wilayah | Nasional, 34 provinsi, kab/kota | Level pasar tidak dipublikasikan. Kab/kota per jenis pasar (1 Nov 2026): Tradisional 110, Modern 78, Pedagang Besar 75, Produsen 143 |
 | Waktu | Harian (hari kerja), sejak 2017-06-01 | 1 bulan ≈ 1,5 detik; 1 tahun timeout |
 | Format | Lebar: kolom per tanggal, harga string `"16,450"` | Diparse ke format panjang |
 
-Catatan: kode wilayah PIHPS ≠ kode BPS (perlu tabel pemetaan); daftar provinsi masih 34;
-kategori Beras Pasar Modern sama dengan Tradisional pada sampel probe (perlu dicek).
+Catatan: kode wilayah PIHPS ≠ kode BPS (perlu tabel pemetaan; ID kab/kota PIHPS tidak berurutan,
+mis. Kota Surakarta = 787); daftar provinsi masih 34; kategori Beras Pasar Modern sama dengan
+Tradisional pada sampel probe (perlu dicek).
+
+Temuan run nyata F1 (29–30 Okt 2026, semua jenis pasar & level):
+
+- Jumlah baris per respons **tidak tetap 31**. Komoditas tanpa data tidak muncul sama sekali
+  (bukan NULL). Baru 59 dari 110 kab/kota pasar tradisional yang lengkap 31 baris. Staging
+  tidak boleh mengasumsikan jumlah baris tetap.
+- Produsen: daftar kab/kotanya paling panjang (143), tetapi umumnya hanya memuat 2–10 baris.
+  10 kab/kota dan 3 provinsi (DKI Jakarta, Kepulauan Riau, NTT) kosong total. Nasional
+  produsen tetap 31 baris, kemungkinan banyak nilai kosong (cek di staging).
+- `GetRefRegency` mencantumkan wilayah tanpa data: kosong di Pasar Modern (Kota Surakarta,
+  Kota Probolinggo, Kota Maumere) dan di Pedagang Besar (Kab. Aceh Besar, Kota Metro).
+- Total respons kosong 18 dari 546 request harga (3,3%; produsen saja 13/178 = 7,3%).
 
 ## Desain penyimpanan
 
@@ -107,6 +120,24 @@ Detail layout raw: `docs/raw-layout.md`.
 ## Keputusan terbuka
 
 - [ ] Level wilayah untuk backfill: nasional + provinsi dulu, atau langsung kab/kota?
+  _Data run 1 Nov (113 bulan, 2017-06 s.d. 2026-10; asumsi cakupan kab/kota sama dengan
+  sekarang; 1,5–2,5 detik/request):_
+  - nasional + provinsi: 4 × 35 × 113 = **15.820 request ≈ 7–11 jam**
+  - kab/kota: 406 × 113 = **45.878 request ≈ 19–32 jam**
+  - semua level: **61.698 request ≈ 26–43 jam**
+
+  **Rekomendasi**: nasional + provinsi dulu. Volumenya cukup untuk web F4 (peta provinsi,
+  tren) dan selesai dalam 1 hari. Kab/kota menyusul bertahap, karena daftar kab/kota
+  `GetRefRegency` adalah kondisi hari ini (wilayah lama mungkin tidak tercakup) dan respons
+  kosong di tahun awal kemungkinan besar.
+- [ ] Pembagian job backfill: usulan matriks `jenis_pasar × tahun` (40 job, terbesar produsen
+  12 × 178 ≈ 2.100 request ≈ 1–1,5 jam, jauh di bawah batas 6 jam), `max-parallel: 1` agar
+  tetap 1 request/1,5 detik ke server. Perlu diputuskan: boleh `max-parallel: 2`, dan
+  jadwalnya dijauhkan dari cron harian 08:00 UTC?
+- [ ] Ambang silent failure 10% saat backfill: tahun awal (2017) kemungkinan banyak respons
+  kosong, sehingga run backfill bisa "gagal" padahal datanya memang tidak ada. Opsi: ambang
+  bisa diatur per run (mis. `--max-empty-ratio`), atau saat backfill hanya dicatat tanpa
+  menggagalkan run. Rekomendasi: jadikan argumen CLI dengan default 10%.
 - [ ] Warehouse tambahan untuk query ad-hoc: MotherDuck, BigQuery, atau cukup DuckDB + Parquet di R2?
 - [ ] Stack web: Next.js/Astro + ECharts, Evidence.dev, atau DuckDB-WASM di browser?
 - [ ] Sumber nilai HET (beras, Minyakita, gula) dan tanggal berlakunya
@@ -120,3 +151,7 @@ Detail layout raw: `docs/raw-layout.md`.
 | 1 Nov 2026 | Backfill dipecah per bulan, satu request per wilayah | Rentang 1 tahun timeout; multi-ID mengembalikan rata-rata gabungan |
 | 1 Nov 2026 | Manifest di `raw/pihps/_manifests/…`, file nasional `nasional=all.json.gz`, akhiran rentang saat backfill | Satu run mencakup banyak prefix endpoint; potongan bulan tidak saling timpa |
 | 1 Nov 2026 | Ringkasan Telegram dikirim setiap run terjadwal | Ketiadaan pesan = sinyal cron tidak jalan |
+| 1 Nov 2026 | Cron extract `0 8 * * *` (15.00 WIB), `--notify always` | Data hari itu sudah masuk; ringkasan harian jadi heartbeat |
+| 1 Nov 2026 | Silent failure rasio: (gagal + kosong) / request harga > 10%, "kosong" dihitung di level provinsi & kab/kota; nasional pasar tradisional kosong tetap gagal tersendiri | Sesuai rencana monitoring; run nyata 3,3% sehingga ada ruang untuk kekosongan wajar (produsen) |
+| 1 Nov 2026 | Kab/kota diminta dengan `province_id` + `regency_id` induknya; daftar kab/kota diambil per jenis pasar per provinsi setiap run | Cakupan beda antar jenis pasar (75–143 kab/kota) |
+| 1 Nov 2026 | Respons kosong tetap disimpan ke raw dan dicatat di manifest (`records: 0`) | Bukti audit bahwa sumber memang kosong, bukan gagal ambil |
