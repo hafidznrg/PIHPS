@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import hashlib
+import html
 import json
 import logging
 import os
@@ -45,6 +46,9 @@ MIN_INTERVAL_S = 1.5
 MAX_SINGLE_CHUNK_DAYS = 31
 # Jenis pasar acuan untuk deteksi silent failure (lihat check_silent_failure).
 SENTINEL_PRICE_TYPE = 1
+# Ambang silent failure kedua (docs/PLAN.md): (gagal + kosong) / total request harga.
+MAX_EMPTY_OR_FAILED_RATIO = 0.10
+EMPTY_COUNTED_LEVELS = ("provinsi", "kabkota")
 EXPECTED_PROVINCES = 34
 
 
@@ -410,6 +414,47 @@ class Extractor:
             self.silent_failures.append(item)
             log.error("SILENT FAILURE %s", item)
 
+    def _grid_quality(self) -> dict[str, Any]:
+        """Aturan silent failure kedua: (gagal + kosong) / total request harga > 10%.
+
+        "Kosong" = HTTP 200 dan tersimpan, tetapi tanpa record, dihitung di level provinsi
+        dan kab/kota. "Gagal" = request harga yang gagal di level mana pun.
+        """
+        grid = [f for f in self.files if f["endpoint"] == "GetGridDataDaerah"]
+        empty_by_level = {
+            lv: sum(1 for f in grid if f["level"] == lv and f["ok"] and f["records"] == 0)
+            for lv in LEVELS
+        }
+        n_failed = sum(1 for f in grid if not f["ok"])
+        n_empty = sum(empty_by_level[lv] for lv in EMPTY_COUNTED_LEVELS)
+        ratio = (n_failed + n_empty) / len(grid) if grid else 0.0
+        if ratio > MAX_EMPTY_OR_FAILED_RATIO:
+            item = {
+                "check": "rasio (gagal + kosong) / request harga",
+                "start_date": self.params.start.isoformat(),
+                "end_date": self.params.end.isoformat(),
+                "reason": (
+                    f"{n_failed} gagal + {n_empty} kosong dari {len(grid)} request = "
+                    f"{ratio:.1%} > {MAX_EMPTY_OR_FAILED_RATIO:.0%}"
+                ),
+            }
+            self.silent_failures.append(item)
+            log.error("SILENT FAILURE %s", item)
+        regencies_by_price_type: dict[str, int] = {}
+        for f in self.files:
+            if f["endpoint"] == "GetRefRegency" and f["ok"]:
+                slug = f["jenis_pasar"]
+                regencies_by_price_type[slug] = regencies_by_price_type.get(slug, 0) + (
+                    f["records"] or 0
+                )
+        return {
+            "grid_requests": len(grid),
+            "grid_failed": n_failed,
+            "grid_empty_by_level": empty_by_level,
+            "empty_or_failed_ratio": round(ratio, 4),
+            "regencies_by_price_type": regencies_by_price_type,
+        }
+
     def warn(self, msg: str) -> None:
         self.warnings.append(msg)
         log.warning(msg)
@@ -428,6 +473,7 @@ class Extractor:
         else:
             aborted = False
 
+        quality = self._grid_quality()
         failed = [f for f in self.files if not f["ok"]]
         status = "failed" if (failed or self.silent_failures or aborted) else "success"
         return {
@@ -449,6 +495,7 @@ class Extractor:
                 "duration_s": round(time.monotonic() - t0, 1),
                 "silent_failures": len(self.silent_failures),
                 "aborted": aborted,
+                **quality,
                 "by_endpoint": _count_by(self.files),
             },
             "silent_failures": self.silent_failures,
@@ -471,16 +518,26 @@ def _count_by(files: Iterable[dict[str, Any]]) -> dict[str, dict[str, int]]:
 
 
 # ----------------------------------------------------------------- pelaporan
+def to_telegram_html(report: str) -> str:
+    """Escape teks (error/nama wilayah bisa memuat `<` atau `&`) lalu tebalkan baris judul."""
+    head, _, rest = html.escape(report, quote=False).partition("\n")
+    return f"<b>{head}</b>\n{rest}"
+
+
 def format_report(manifest: dict[str, Any], manifest_location: str) -> str:
     s = manifest["summary"]
     p = manifest["params"]
     icon = "✅" if manifest["status"] == "success" else "❌"
     lines = [
-        f"{icon} <b>PIHPS extract {manifest['run_id']}</b> ({manifest['status']})",
+        f"{icon} PIHPS extract {manifest['run_id']} ({manifest['status']})",
         f"Rentang {p['start_date']} → {p['end_date']}",
         f"{s['succeeded']}/{s['requests_total']} request OK, {s['failed']} gagal, "
         f"{s['records_total']} record, {s['duration_s']}s",
+        f"Harga: {s['grid_requests']} request, kosong {s['grid_empty_by_level']}, "
+        f"rasio gagal+kosong {s['empty_or_failed_ratio']:.1%}",
     ]
+    if s["regencies_by_price_type"]:
+        lines.append(f"Kab/kota: {s['regencies_by_price_type']}")
     for sf in manifest["silent_failures"]:
         lines.append(f"⚠️ silent failure: {sf['check']} {sf['start_date']}: {sf['reason']}")
     for w in manifest["warnings"][:5]:
@@ -551,7 +608,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--notify",
         choices=["failure", "always", "never"],
         default="failure",
-        help="kirim ringkasan ke Telegram (default: hanya saat gagal)",
+        help="kirim ringkasan ke Telegram (default: hanya saat gagal; workflow terjadwal: always)",
     )
     return ap
 
@@ -607,17 +664,19 @@ def main(argv: list[str] | None = None) -> int:
 
     report = format_report(manifest, location_prefix + mkey)
     print(report)
+    summary = {k: v for k, v in manifest["summary"].items() if k != "by_endpoint"}
+    log.info("summary %s", json.dumps(summary, ensure_ascii=False))
     if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary_path, "a") as fh:
-            plain = report.replace("<b>", "").replace("</b>", "")
-            fh.write(f"## PIHPS extract\n\n```\n{plain}\n```\n")
+            fh.write(f"## PIHPS extract\n\n```\n{report}\n```\n")
 
     ok = manifest["status"] == "success" and manifest_ok
     if args.notify == "always" or (args.notify == "failure" and not ok):
         from pihps.notify import send_telegram
 
         try:
-            send_telegram(report)
+            sent = send_telegram(to_telegram_html(report))
+            log.info("notifikasi Telegram %s", "terkirim" if sent else "TIDAK terkirim")
         except Exception as exc:  # noqa: BLE001 - notifikasi tidak boleh mengubah exit code
             log.error("notifikasi Telegram gagal: %s", exc)
     return 0 if ok else 1

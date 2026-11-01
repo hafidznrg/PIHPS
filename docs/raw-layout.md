@@ -38,7 +38,7 @@ raw/pihps/
 | `run_id`, `ingest_date`, `status` | `status` = `success` / `failed` |
 | `scraper_version`, `git_sha` | versi paket `pihps` dan commit (`GITHUB_SHA` atau `git rev-parse`) |
 | `params` | rentang tanggal, jenis pasar, level, `tipe_laporan` |
-| `summary` | `requests_total`, `http_attempts` (termasuk retry), `succeeded`, `failed`, `records_total`, `bytes_total`, `duration_s`, `silent_failures`, `by_endpoint` |
+| `summary` | `requests_total`, `http_attempts` (termasuk retry), `succeeded`, `failed`, `records_total`, `bytes_total`, `duration_s`, `silent_failures`, `grid_requests`, `grid_failed`, `grid_empty_by_level`, `empty_or_failed_ratio`, `regencies_by_price_type`, `by_endpoint` |
 | `files[]` | `path`, `endpoint`, `jenis_pasar`, `level`, `level_id`, `url`, `params`, `http_status`, `fetched_at` (UTC), `bytes` & `sha256` (respons mentah sebelum gzip), `gz_bytes`, `records`, `ok`, `error` |
 | `silent_failures[]`, `warnings[]`, `failed_files[]` | detail kegagalan |
 
@@ -53,6 +53,9 @@ bukan glob buta atas prefix.
 2. **Silent failure**: respons `GetGridDataDaerah` nasional pasar tradisional HTTP 200 tetapi
    tanpa record, tanpa kolom tanggal, atau semua harga kosong. Respons tetap disimpan untuk
    audit.
-3. Manifest gagal ditulis ke R2.
+3. **Silent failure rasio**: (request harga gagal + respons HTTP 200 tanpa record di level
+   provinsi & kab/kota) / total request harga (`GetGridDataDaerah`) > 10%. Jumlah kosong per
+   level dicatat di `summary.grid_empty_by_level`, rasionya di `summary.empty_or_failed_ratio`.
+4. Manifest gagal ditulis ke R2.
 
 Peringatan (tidak menggagalkan run): jumlah provinsi dari `GetRefProvince` ≠ 34.
