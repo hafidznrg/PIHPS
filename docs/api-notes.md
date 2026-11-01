@@ -63,6 +63,20 @@ Respons berformat **lebar**, satu kolom per tanggal, harga sebagai string ber-pe
 
 `GetChartDaerah` memakai parameter yang sama dan dipakai untuk mode grafis.
 
-## Temuan probe
+## Temuan probe (run 1 Nov 2026, runner `ubuntu-latest`)
 
-_Diisi setelah workflow `probe` berjalan dari GitHub Actions._
+| Temuan | Implikasi |
+|---|---|
+| Runner GitHub (IP luar negeri) **bisa** mengakses API, HTTP 200 dalam < 1 detik | GitHub Actions layak dipakai sebagai scheduler; tidak perlu runner di Indonesia |
+| `GetRefPriceType` tanpa filter: 1 Pasar Tradisional, 2 Pasar Modern, 3 Pedagang Besar, 4 Produsen | Mapping `PRICE_TYPES` terkonfirmasi |
+| Data historis tersedia sejak **1 Juni 2017** (awal PIHPS), dengan sebagian nilai kosong di 2017 | Backfill mulai 2017-06-01; staging harus toleran terhadap NULL |
+| Rentang 1 bulan ≈ 1,5 detik; rentang **1 tahun timeout** (> 60 detik) | Backfill dipecah per bulan |
+| `province_id=13,12` mengembalikan **satu** seri gabungan (rata-rata), bukan per provinsi | Harus satu request per wilayah |
+| DKI Jakarta hanya punya 1 kab/kota di PIHPS (Kota Jakarta Pusat) | Cakupan kab/kota per provinsi berbeda-beda; ambil daftar dari `GetRefRegency` |
+| `GetRefMarket` untuk regency 34 mengembalikan nama kab/kota, bukan daftar pasar | Level pasar kemungkinan tidak dipublikasikan; pipeline berhenti di level kab/kota |
+| `tipe_laporan=4` (mingguan) berfungsi, tanggal = awal minggu | Cukup ambil harian; agregasi mingguan/bulanan dihitung sendiri di dbt |
+| Sampel kategori "Beras" Pasar Modern = Pasar Tradisional (16.400) pada tanggal yang sama | Perlu dicek di staging apakah kebetulan atau data modern meniru tradisional |
+
+Estimasi backfill (harian, per bulan, 4 jenis pasar): nasional + 34 provinsi ≈ 4 × 35 × 113 bulan
+≈ 16 ribu request; ditambah level kab/kota. Pada 1 request/1,5 detik, perlu dipecah ke beberapa
+job paralel/bertahap agar tetap sopan dan di bawah batas 6 jam per job GitHub Actions.

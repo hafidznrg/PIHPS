@@ -21,7 +21,7 @@ GitHub Actions (cron harian)
 ## Status
 
 - [x] Identifikasi sumber & endpoint — lihat [docs/api-notes.md](docs/api-notes.md)
-- [ ] Probe akses dari GitHub Actions
+- [x] Probe akses dari GitHub Actions (lihat temuan di docs/api-notes.md)
 - [ ] Extractor harian → raw
 - [ ] Staging & marts (dbt)
 - [ ] Alerting & freshness
