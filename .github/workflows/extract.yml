@@ -1,0 +1,81 @@
+name: extract
+
+# Extractor harian: PIHPS -> R2 raw/. Default 7 hari terakhir s.d. hari ini (WIB) supaya
+# revisi data dari BI ikut tertangkap. workflow_dispatch bisa dipakai untuk backfill kecil.
+on:
+  schedule:
+    - cron: "23 11 * * *" # 18:23 WIB
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "start_date YYYY-MM-DD (kosong = 7 hari terakhir)"
+        required: false
+      end:
+        description: "end_date YYYY-MM-DD (kosong = hari ini WIB)"
+        required: false
+      price_types:
+        description: "price_type_id dipisah koma"
+        default: "1,2,3,4"
+      levels:
+        description: "nasional,provinsi,kabkota"
+        default: "nasional,provinsi,kabkota"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extract
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Extract
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          IN_START: ${{ inputs.start }}
+          IN_END: ${{ inputs.end }}
+          IN_PRICE_TYPES: ${{ inputs.price_types || '1,2,3,4' }}
+          IN_LEVELS: ${{ inputs.levels || 'nasional,provinsi,kabkota' }}
+        run: |
+          args=(--price-types "$IN_PRICE_TYPES" --levels "$IN_LEVELS")
+          [ -n "$IN_START" ] && args+=(--start "$IN_START")
+          [ -n "$IN_END" ] && args+=(--end "$IN_END")
+          uv run python -m pihps.extract "${args[@]}"
+
+      - name: Upload manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extract-manifest
+          path: extract_manifest.json
+          if-no-files-found: ignore
+
+      # Extractor sudah mengirim ringkasan ke Telegram saat gagal; ini jaring pengaman
+      # untuk kegagalan sebelum extractor jalan (install, secret hilang, timeout).
+      - name: Alert on crash
+        if: failure() && hashFiles('extract_manifest.json') == ''
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -sS -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "text=❌ Workflow ${GITHUB_WORKFLOW} gagal sebelum manifest ditulis: ${URL}" > /dev/null

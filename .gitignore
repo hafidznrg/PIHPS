@@ -9,3 +9,4 @@ probe_result.json
 data/
 *.duckdb
 *.duckdb.wal
+extract_manifest.json
