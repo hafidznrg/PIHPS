@@ -60,6 +60,9 @@ Respons berformat **lebar**, satu kolom per tanggal, harga sebagai string ber-pe
 - `level: 1` = baris kategori (rata-rata), `level: 2` = komoditas.
 - Hanya hari kerja yang muncul (tanggal 24-25 & 31 Okt tidak ada di respons).
 - Nama bisa mengandung spasi berlebih (`"Cabai Merah Keriting "`).
+- Komoditas tanpa data di suatu wilayah **tidak muncul sebagai baris** (bukan nilai kosong),
+  jadi jumlah baris bervariasi 0–31. Wilayah tanpa data sama sekali mengembalikan
+  `{"data":[{}]}` (11 byte) dengan HTTP 200.
 
 `GetChartDaerah` memakai parameter yang sama dan dipakai untuk mode grafis.
 
