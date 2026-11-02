@@ -66,8 +66,8 @@ Endpoint JSON internal PIHPS (tidak resmi), detail di `docs/api-notes.md`.
 | Waktu | Harian (hari kerja), sejak 2017-06-01 | 1 bulan ≈ 1,5 detik; 1 tahun timeout |
 | Format | Lebar: kolom per tanggal, harga string `"16,450"` | Diparse ke format panjang |
 
-Catatan: kode wilayah PIHPS ≠ kode BPS (perlu tabel pemetaan; ID kab/kota PIHPS tidak berurutan,
-mis. Kota Surakarta = 787); daftar provinsi masih 34; kategori Beras Pasar Modern sama dengan
+Catatan: kode wilayah PIHPS ≠ kode BPS (dipetakan lewat seed `wilayah_provinsi_bps` dan
+`wilayah_kabkota_bps`; ID kab/kota PIHPS tidak berurutan, dan Kota Surakarta punya dua id: 36 dan 787); daftar provinsi masih 34; kategori Beras Pasar Modern sama dengan
 Tradisional pada sampel probe (perlu dicek).
 
 Temuan run nyata F1 (29–30 Okt 2026, semua jenis pasar & level):
@@ -124,7 +124,6 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 - [ ] Warehouse tambahan untuk query ad-hoc: MotherDuck, BigQuery, atau cukup DuckDB + Parquet di R2?
 - [ ] Stack web: Next.js/Astro + ECharts, Evidence.dev, atau DuckDB-WASM di browser?
 - [ ] Sumber nilai HET (beras, Minyakita, gula) dan tanggal berlakunya (seed `transform/seeds/het_komoditas.csv` siap, masih kosong)
-- [ ] Pemetaan kab/kota PIHPS → kode BPS 4 digit (provinsi sudah; kab/kota butuh seed ±170 baris, pencocokan nama)
 
 ## Log keputusan
 
@@ -152,3 +151,4 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | 2 Nov 2026 | Publish = unggah dulu, lalu hapus objek basi di `staging/` & `marts/`; hanya bila tidak ada tes `error` | Isi R2 selalu = build terakhir yang lolos; pembaca tidak pernah melihat prefix kosong |
 | 2 Nov 2026 | Workflow `transform` dipicu `workflow_run` setelah `extract`/`backfill` (kecuali dibatalkan), Telegram setiap run | Data berhasil sebagian tetap diolah; ringkasan jadi heartbeat kedua |
 | 2 Nov 2026 | Freshness membaca `marts/_build.json` (bukan raw); hari kerja = Senin–Jumat tanpa kalender libur | Sekaligus mendeteksi transform yang berhenti; libur nasional = keputusan terbuka (bisa alarm palsu saat Lebaran) |
+| 2 Nov 2026 | Kab/kota PIHPS → kode BPS 4 digit lewat seed `wilayah_kabkota_bps` dari MFD BPS Jan 2018 (34 provinsi): 148 otomatis, 23 manual; kab/kota baru tanpa pemetaan = warn | Cakupan provinsi PIHPS masih pra-pemekaran; "Kota X" PIHPS kadang kota pasar = ibu kota kabupaten (Sampit, Tembilahan, Watampone, …) |

@@ -44,7 +44,8 @@ Keputusan pemodelan:
   manifest) menurun. Nilai kosong terbaru (`'-'`) juga menang — staging mencerminkan versi
   terakhir BI. Komoditas yang hilang dari respons terbaru tidak menghapus versi lama.
 - **`kode_wilayah`** = kunci natural PIHPS: `nasional`, `prov-<id>`, `kab-<id>` (id PIHPS ≠
-  kode BPS). `kode_bps_provinsi` dari seed `wilayah_provinsi_bps`; kab/kota belum dipetakan.
+  kode BPS). Kode BPS dari seed `wilayah_provinsi_bps` (34) dan `wilayah_kabkota_bps` (171,
+  MFD BPS Jan 2018; 23 dipetakan manual, mis. kota pasar Sampit → Kab. Kotawaringin Timur).
 - **SCD2 tanpa `dbt snapshot`**: dim_wilayah dihitung ulang dari seluruh snapshot referensi di
   raw (immutable), jadi tidak ada state yang bisa hilang. Versi pertama berlaku sejak
   `data_start` agar fakta backfill 2017 tetap tergabung.
@@ -65,5 +66,6 @@ Keputusan pemodelan:
 | `assert_lonjakan_harga_harian` (> 3× atau < ⅓ hari publikasi sebelumnya, jeda ≤ 7 hari) | warn | salah input |
 | `assert_nasional_tradisional_lengkap` | warn | kategori hilang di hari publikasi |
 | `assert_seed_provinsi_cocok_referensi` | warn | arti id provinsi PIHPS berubah |
+| `kabkota_terpetakan_ke_bps` | warn | kab/kota PIHPS baru, perlu baris seed |
 
 Tes `warn` tidak menghentikan publish, tetapi jumlahnya masuk ringkasan Telegram & step summary.

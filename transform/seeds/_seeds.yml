@@ -32,3 +32,35 @@ seeds:
         berlaku_sampai: date
         keterangan: varchar
         sumber: varchar
+
+  - name: wilayah_kabkota_bps
+    description: >
+      Pemetaan id kab/kota PIHPS ke kode BPS 4 digit (MFD BPS, 34 provinsi, Januari 2018 —
+      sebelum pemekaran Papua 2022, sama seperti cakupan PIHPS). 148 cocok otomatis (nama
+      sama dalam provinsi yang sama), 23 manual: ejaan BPS berbeda (mis. "KOTA D U M A I"),
+      atau PIHPS memakai nama kota pasar yang sebenarnya ibu kota kabupaten (mis. Kota Sampit ->
+      Kab. Kotawaringin Timur). kode_bps tidak unik: PIHPS punya dua id untuk Kota Surakarta.
+    config:
+      column_types:
+        pihps_kabkota_id: integer
+        nama_pihps: varchar
+        pihps_provinsi_id: integer
+        kode_bps: varchar
+        nama_bps: varchar
+        cara_cocok: varchar
+        catatan: varchar
+    columns:
+      - name: pihps_kabkota_id
+        data_tests: [unique, not_null]
+      - name: kode_bps
+        data_tests:
+          - not_null
+          - dalam_rentang:
+              arguments:
+                min_value: "'1101'"
+                max_value: "'9471'"
+      - name: cara_cocok
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [otomatis, manual]

@@ -99,6 +99,10 @@ provinsi_bps as (
     select pihps_provinsi_id, kode_bps from {{ ref('wilayah_provinsi_bps') }}
 ),
 
+kabkota_bps as (
+    select pihps_kabkota_id, kode_bps, nama_bps from {{ ref('wilayah_kabkota_bps') }}
+),
+
 wilayah as (
     select
         versi.kode_wilayah,
@@ -142,8 +146,12 @@ select
     wilayah.kabkota_id,
     wilayah.nama,
     induk.nama as nama_provinsi,
-    case wilayah.level_wilayah when 'provinsi' then provinsi_bps.kode_bps end as kode_bps,
+    case wilayah.level_wilayah
+        when 'provinsi' then provinsi_bps.kode_bps
+        when 'kabkota' then kabkota_bps.kode_bps
+    end as kode_bps,
     provinsi_bps.kode_bps as kode_bps_provinsi,
+    kabkota_bps.nama_bps,
     wilayah.versi_ke,
     wilayah.valid_from,
     wilayah.valid_to,
@@ -152,6 +160,7 @@ select
     wilayah.terakhir_terlihat
 from wilayah
 left join provinsi_bps on wilayah.provinsi_id = provinsi_bps.pihps_provinsi_id
+left join kabkota_bps on wilayah.kabkota_id = kabkota_bps.pihps_kabkota_id
 -- Nama provinsi induk versi terkini (untuk label kab/kota).
 left join (
     select distinct on (provinsi_id) provinsi_id, nama

@@ -142,8 +142,11 @@ def test_staging_unique_key_and_mappings(built):
     assert query(
         root,
         f"""select distinct kode_wilayah, kode_bps_provinsi from {STG}
-            where kode_wilayah in ('prov-13', 'kab-60') order by 1""",
-    ) == [("kab-60", "32"), ("prov-13", "31")]
+            where kode_wilayah in ('prov-13', 'kab-27') order by 1""",
+    ) == [("kab-27", "32"), ("prov-13", "31")]
+    assert query(
+        root, f"select distinct kode_bps_kabkota from {STG} where kode_wilayah = 'kab-27'"
+    ) == [("3273",)]
     # nama ber-spasi berlebih tetap terpetakan
     assert query(
         root, f"select distinct komoditas_id from {STG} where nama_komoditas like 'Cabai Merah K%'"
@@ -160,11 +163,11 @@ def test_marts_dimensions(built):
     wil = query(
         root,
         f"""select kode_wilayah, nama, nama_provinsi, kode_bps, valid_from, is_current
-            from '{out}/dim_wilayah.parquet' where kode_wilayah in ('kab-60', 'prov-12')
+            from '{out}/dim_wilayah.parquet' where kode_wilayah in ('kab-27', 'prov-12')
             order by 1""",
     )
     assert wil == [
-        ("kab-60", "Kota Bandung", "Jawa Barat", None, date(2017, 6, 1), True),
+        ("kab-27", "Kota Bandung", "Jawa Barat", "3273", date(2017, 6, 1), True),
         ("prov-12", "Jawa Barat", "Jawa Barat", "32", date(2017, 6, 1), True),
     ]
     # setiap fakta tergabung ke versi dimensi wilayah

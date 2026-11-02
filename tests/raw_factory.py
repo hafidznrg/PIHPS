@@ -27,7 +27,7 @@ PRICE_TYPES = (
 )
 REGENCIES = {
     (1, "13"): [{"id": 34, "name": "Kota Jakarta Pusat"}],
-    (1, "12"): [{"id": 60, "name": "Kota Bandung"}],
+    (1, "12"): [{"id": 27, "name": "Kota Bandung"}],
 }
 
 

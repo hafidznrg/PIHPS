@@ -75,6 +75,8 @@ models:
           - not_null:
               config:
                 where: "level_wilayah <> 'nasional'"
+      - name: kode_bps_kabkota
+        description: Kode BPS kab/kota (4 digit) untuk baris kab/kota; NULL bila belum dipetakan.
       - name: harga
         data_tests:
           - dalam_rentang:

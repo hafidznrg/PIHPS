@@ -24,6 +24,10 @@ provinsi_bps as (
     select pihps_provinsi_id, kode_bps from {{ ref('wilayah_provinsi_bps') }}
 ),
 
+kabkota_bps as (
+    select pihps_kabkota_id, kode_bps from {{ ref('wilayah_kabkota_bps') }}
+),
+
 latest as (
     select *
     from {{ ref('stg_pihps__harga_raw') }}
@@ -42,6 +46,7 @@ select
     latest.provinsi_id,
     latest.kabkota_id,
     provinsi_bps.kode_bps as kode_bps_provinsi,
+    kabkota_bps.kode_bps as kode_bps_kabkota,
     komoditas.komoditas_id,
     latest.nama_komoditas,
     latest.level_komoditas,
@@ -59,4 +64,6 @@ left join komoditas
     and latest.level_komoditas = komoditas.level_komoditas
 left join provinsi_bps
     on latest.provinsi_id = provinsi_bps.pihps_provinsi_id
+left join kabkota_bps
+    on latest.kabkota_id = kabkota_bps.pihps_kabkota_id
 order by latest.kode_wilayah, komoditas.komoditas_id, latest.jenis_pasar_id, latest.tanggal

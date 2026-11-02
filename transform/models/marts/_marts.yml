@@ -46,7 +46,7 @@ models:
     description: >
       Wilayah SCD2 (nasional, provinsi, kab/kota) yang diturunkan ulang dari seluruh snapshot
       referensi di raw. kode_wilayah = kunci natural PIHPS (nasional / prov-<id> / kab-<id>);
-      kode_bps terisi untuk provinsi. Interval berlaku [valid_from, valid_to).
+      kode_bps dari seed wilayah_provinsi_bps / wilayah_kabkota_bps. Interval berlaku [valid_from, valid_to).
     data_tests:
       - unique_combination:
           arguments:
@@ -61,6 +61,19 @@ models:
         data_tests: [unique, not_null]
       - name: nama
         data_tests: [not_null]
+      - name: kode_bps
+        description: >
+          Kode BPS (2 digit provinsi, 4 digit kab/kota). Kab/kota PIHPS baru yang belum ada di
+          seed wilayah_kabkota_bps memicu warn (bukan error) agar publish tidak terhenti.
+        data_tests:
+          - not_null:
+              config:
+                where: "level_wilayah = 'provinsi'"
+          - not_null:
+              name: kabkota_terpetakan_ke_bps
+              config:
+                where: "level_wilayah = 'kabkota' and is_current"
+                severity: warn
       - name: level_wilayah
         data_tests:
           - accepted_values:
