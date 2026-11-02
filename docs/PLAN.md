@@ -1,6 +1,6 @@
 # Rencana Project PIHPS Harga Pangan
 
-_Dokumen hidup. Terakhir diperbarui: 2 Nov 2026 (F2 transformasi). Perbarui bagian **Status** dan **Log keputusan**
+_Dokumen hidup. Terakhir diperbarui: 2 Nov 2026 (F2–F4). Perbarui bagian **Status** dan **Log keputusan**
 setiap kali fase selesai atau keputusan berubah._
 
 ## Ringkasan
@@ -22,9 +22,9 @@ mudah dipahami masyarakat awam.
 | --- | --- | --- |
 | F0 Fondasi | Repo, endpoint terdokumentasi, probe lolos 18/19 dari runner GitHub, R2 & Telegram siap | Selesai 1 Nov |
 | F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian aktif mulai 2 Nov |
-| F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Sedang di-review (branch `claude/adoring-shannon-wtzodk`): proyek `transform/` + `pihps.transform` + workflow `transform` (setelah extract/backfill). Run nyata 2 Nov: 6 manifest, 1.236 file raw, 344 ribu baris staging, 63 node dbt lolos (1 warn), 19 Parquet di R2, Telegram terkirim; run ulang dengan cache: sync 0,4 detik |
-| F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Backfill nasional + provinsi **selesai** 2 Nov ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499)): 40/40 job, 15.940 request, 0 gagal, 1.215 kosong, 403.985 record, 211 MB mentah, 8,2 jam. Freshness check: workflow `freshness` (PR #3). Kab/kota historis menyusul |
-| F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Siap di PR #3, menunggu GitHub Pages diaktifkan: `web/` (Astro + ECharts), serving layer (`srv_*` + `pihps.serving`, 239 file JSON berkontrak), halaman Jelajahi (DuckDB-WASM). Build data nyata 2 Nov: 240 halaman, kontrak & 14 e2e (HP + desktop) lolos. HET menunggu sumber nilai |
+| F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Selesai 2 Nov (PR #3). Data penuh: 8,74 juta baris staging 2017-06-01 → 2026-10-30, 203 wilayah; dbt 130 detik; 196 sel outlier ditandai; Parquet + 239 file serving di R2; Telegram terkirim |
+| F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Selesai 2 Nov untuk nasional + provinsi: backfill 40/40 job, 15.940 request, 0 gagal, 403.985 record, 8,2 jam ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499)); workflow `freshness` harian (PR #3). Kab/kota historis menyusul |
+| F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Siap di PR #3: build data penuh 240 halaman, kontrak & 14 e2e lolos; terbit ke GitHub Pages setelah merge. HET menunggu sumber nilai |
 | F5 Analisis & publikasi | Volatilitas, disparitas, musiman, margin rantai pasok; README akhir | Belum |
 
 F1–F3 diprioritaskan selama kredit sesi cloud Claude Code masih ada (habis 5 Nov 2026, 14.59 WIB).
@@ -155,6 +155,7 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 
 - [ ] Backfill kab/kota (45.878 request, ±19–32 jam): kapan dijalankan, dan perlukah daftar kab/kota historis (`GetRefRegency` hanya kondisi sekarang)?
 - [ ] Warehouse tambahan untuk query ad-hoc: MotherDuck, BigQuery, atau cukup DuckDB + Parquet di R2?
+- [ ] Cron `extract` (15.00 WIB) belum pernah terpicu sejak di-merge 1 Nov: run 2 Nov tidak ada. Pantau 3 Nov; bila tetap tidak jalan, cek status jadwal di tab Actions atau picu ulang dengan commit kecil ke `main`
 - [ ] Sumber nilai HET (beras, Minyakita, gula) dan tanggal berlakunya (seed `transform/seeds/het_komoditas.csv` siap, masih kosong)
 
 ## Log keputusan
@@ -188,3 +189,4 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | 2 Nov 2026 | Web F4 = Astro + ECharts + serving layer dbt, + satu halaman Jelajahi berbasis DuckDB-WASM | Diputuskan pemilik project: cepat di HP untuk publik; nilai portofolio ada di serving layer sebagai kontrak data; DuckDB-WASM menunjukkan lakehouse bisa di-query tanpa server |
 | 2 Nov 2026 | Serving ditulis Python dari model dbt (bukan COPY JSON DuckDB); format kolumnar ringkas (array tanggal bersama + array harga) | Nama file per wilayah/komoditas tetap dan struktur bersarang; ukuran kecil untuk HP |
 | 2 Nov 2026 | Hosting GitHub Pages; Parquet marts ikut disajikan dari origin situs untuk halaman Jelajahi | Tanpa bucket R2 publik/CORS dan tanpa secret baru; pembacaan Parquet via HTTP range |
+| 2 Nov 2026 | Outlier juga = harga > Rp1 juta/kg | Salah input berkepanjangan (Bengkulu produsen daging sapi Rp12 juta/kg sebulan) mencemari median jendela sehingga aturan relatif saja tidak cukup |

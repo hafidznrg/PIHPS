@@ -9,10 +9,8 @@ on:
     types: [completed]
   workflow_dispatch:
   # Kode situs / kontrak berubah di main -> terbitkan ulang tanpa menunggu transform berikutnya.
-  # SEMENTARA: branch fitur ikut di daftar untuk uji build data nyata (tanpa deploy); hapus
-  # sebelum PR siap.
   push:
-    branches: [main, claude/adoring-shannon-wtzodk]
+    branches: [main]
     paths:
       - "web/**"
       - "src/pihps/serving_schemas/**"
