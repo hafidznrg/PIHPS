@@ -1,0 +1,104 @@
+version: 2
+
+models:
+  - name: stg_pihps__manifest_files
+    description: Satu baris per file per manifest run; sumber kebenaran untuk membaca raw.
+    columns:
+      - name: path
+        description: Key objek di R2 (relatif terhadap root bucket). NULL bila request gagal.
+      - name: run_id
+        data_tests: [not_null]
+      - name: fetched_at
+        description: Waktu respons diterima (UTC); dipakai sebagai _ingested_at.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [path]
+          config:
+            where: "path is not null and ok"
+
+  - name: stg_pihps__harga_raw
+    description: >
+      GetGridDataDaerah format panjang sebelum dedup: satu baris per file raw x komoditas x
+      tanggal. Dipakai oleh tes parsing dan audit revisi.
+    columns:
+      - name: tanggal
+        data_tests: [not_null]
+      - name: harga
+        description: Harga Rp/satuan; NULL bila sumber kosong ('-', '', '0').
+        data_tests:
+          - dalam_rentang:
+              arguments:
+                min_value: 1
+              config:
+                severity: error
+
+  - name: stg_pihps__harga
+    description: >
+      Harga harian bersih format panjang. Kunci unik tanggal x jenis_pasar x kode_wilayah x
+      komoditas_id; dedup latest wins berdasarkan _ingested_at. Ditulis sebagai Parquet
+      berpartisi tahun/bulan ke staging/stg_pihps__harga/.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [tanggal, jenis_pasar_id, kode_wilayah, komoditas_id]
+    columns:
+      - name: tanggal
+        data_tests:
+          - not_null
+          - dalam_rentang:
+              arguments:
+                min_value: "cast('{{ var(\"data_start\") }}' as date)"
+                max_value: "current_date + 1"
+      - name: jenis_pasar_id
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4]
+                quote: false
+      - name: level_wilayah
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [nasional, provinsi, kabkota]
+      - name: kode_wilayah
+        data_tests: [not_null]
+      - name: komoditas_id
+        description: >
+          cat_x / com_x hasil pencocokan nama dengan snapshot GetRefCommodityAndCategory.
+          NULL berarti komoditas baru atau nama berubah di sumber.
+        data_tests: [not_null]
+      - name: kode_bps_provinsi
+        description: Kode BPS provinsi (2 digit) untuk baris provinsi dan kab/kota.
+        data_tests:
+          - not_null:
+              config:
+                where: "level_wilayah <> 'nasional'"
+      - name: harga
+        data_tests:
+          - dalam_rentang:
+              arguments:
+                min_value: "{{ var('harga_wajar_min') }}"
+                max_value: "{{ var('harga_wajar_max') }}"
+              config:
+                severity: warn
+      - name: _ingested_at
+        data_tests: [not_null]
+
+  - name: stg_pihps__ref_komoditas
+    description: Semua snapshot referensi komoditas (pohon kategori -> komoditas).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [komoditas_id, _run_id]
+  - name: stg_pihps__ref_provinsi
+    description: Semua snapshot referensi provinsi.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [provinsi_id, _run_id]
+  - name: stg_pihps__ref_kabkota
+    description: Semua snapshot referensi kab/kota per jenis pasar per provinsi.
+  - name: stg_pihps__ref_jenis_pasar
+    description: Semua snapshot referensi jenis pasar.

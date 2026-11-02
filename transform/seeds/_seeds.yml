@@ -1,0 +1,34 @@
+version: 2
+
+seeds:
+  - name: wilayah_provinsi_bps
+    description: >
+      Pemetaan id provinsi PIHPS (urutan internal PIHPS) ke kode wilayah BPS 2 digit.
+      Wilayah PIHPS masih 34 provinsi (sebelum pemekaran Papua 2022), jadi Papua = 94 dan
+      Papua Barat = 91 versi BPS lama. Kab/kota belum dipetakan.
+    config:
+      column_types:
+        pihps_provinsi_id: integer
+        nama_pihps: varchar
+        kode_bps: varchar
+        nama_bps: varchar
+    columns:
+      - name: pihps_provinsi_id
+        data_tests: [unique, not_null]
+      - name: kode_bps
+        data_tests: [unique, not_null]
+
+  - name: het_komoditas
+    description: >
+      Harga Eceran Tertinggi / Harga Acuan per komoditas PIHPS beserta masa berlaku.
+      Sengaja masih kosong: sumber resmi dan tanggal berlaku belum diputuskan
+      (docs/PLAN.md, keputusan terbuka). Satu baris per komoditas per masa berlaku.
+    config:
+      column_types:
+        komoditas_id: varchar
+        het: integer
+        satuan: varchar
+        berlaku_mulai: date
+        berlaku_sampai: date
+        keterangan: varchar
+        sumber: varchar

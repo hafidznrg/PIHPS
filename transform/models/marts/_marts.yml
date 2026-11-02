@@ -1,0 +1,90 @@
+version: 2
+
+models:
+  - name: fct_harga_harian
+    description: >
+      Fakta harga harian (Parquet berpartisi tahun di marts/fct_harga_harian/). Grain
+      tanggal x jenis_pasar x wilayah x komoditas, hanya sel yang berharga. Baris kategori
+      (level_komoditas = 1) adalah rata-rata dari BI, bukan hasil agregasi kita.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [tanggal, jenis_pasar_id, kode_wilayah, komoditas_id]
+    columns:
+      - name: harga
+        data_tests: [not_null]
+      - name: tanggal
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_tanggal')
+                field: tanggal
+      - name: jenis_pasar_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_pasar')
+                field: jenis_pasar_id
+      - name: komoditas_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_komoditas')
+                field: komoditas_id
+      - name: wilayah_sk
+        description: Versi dim_wilayah (SCD2) yang berlaku pada tanggal harga.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_wilayah')
+                field: wilayah_sk
+
+  - name: dim_wilayah
+    description: >
+      Wilayah SCD2 (nasional, provinsi, kab/kota) yang diturunkan ulang dari seluruh snapshot
+      referensi di raw. kode_wilayah = kunci natural PIHPS (nasional / prov-<id> / kab-<id>);
+      kode_bps terisi untuk provinsi. Interval berlaku [valid_from, valid_to).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [kode_wilayah, valid_from]
+      - unique_combination:
+          arguments:
+            columns: [kode_wilayah]
+          config:
+            where: is_current
+    columns:
+      - name: wilayah_sk
+        data_tests: [unique, not_null]
+      - name: nama
+        data_tests: [not_null]
+      - name: level_wilayah
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [nasional, provinsi, kabkota]
+
+  - name: dim_komoditas
+    description: Kategori dan komoditas PIHPS dari snapshot referensi terbaru, + HET berlaku.
+    columns:
+      - name: komoditas_id
+        data_tests: [unique, not_null]
+      - name: nama_kategori
+        data_tests: [not_null]
+
+  - name: dim_pasar
+    description: Empat jenis pasar PIHPS.
+    columns:
+      - name: jenis_pasar_id
+        data_tests: [unique, not_null]
+      - name: jenis_pasar
+        data_tests: [not_null]
+
+  - name: dim_tanggal
+    description: Kalender harian sejak awal data; ada_data_pihps = hari publikasi PIHPS.
+    columns:
+      - name: tanggal
+        data_tests: [unique, not_null]

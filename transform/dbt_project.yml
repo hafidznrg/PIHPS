@@ -1,0 +1,41 @@
+# Transformasi PIHPS: raw (JSON.gz + manifest) -> staging -> marts, semuanya Parquet.
+# Jalankan lewat `uv run python -m pihps.transform build` (mengisi var raw_root/out_root).
+name: pihps
+version: "0.2.0"
+config-version: 2
+profile: pihps
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+analysis-paths: ["analyses"]
+target-path: "target"
+clean-targets: ["target", "logs"]
+
+vars:
+  # Direktori yang berisi `raw/pihps/...` dengan layout persis seperti di R2.
+  raw_root: "../data"
+  # Direktori keluaran Parquet; isinya dipublish ke R2 dengan key yang sama.
+  out_root: "../data/out"
+  # Awal data PIHPS (probe F0); versi pertama dim_wilayah berlaku sejak tanggal ini.
+  data_start: "2017-06-01"
+  # Rentang harga wajar per kg (Rp) untuk tes kualitas data berseverity warn.
+  harga_wajar_min: 1000
+  harga_wajar_max: 500000
+
+models:
+  pihps:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: external
+      +format: parquet
+
+seeds:
+  pihps:
+    +quote_columns: false
+
+tests:
+  pihps:
+    +store_failures: false

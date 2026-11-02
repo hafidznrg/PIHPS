@@ -1,0 +1,7 @@
+pihps:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('PIHPS_DUCKDB_PATH', 'target/pihps.duckdb') }}"
+      threads: 4
