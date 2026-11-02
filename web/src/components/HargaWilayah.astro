@@ -156,7 +156,7 @@ const clientCtx = {
     let rentang: "harian" | "bulanan" = "harian";
 
     async function gambar() {
-      const [{ mount, baseOption, rp, rpRingkas, warnaPasar }, doc] = await Promise.all([import("../lib/charts"), loadDoc()]);
+      const [{ mount, baseOption, rp, rpRingkas, warnaPasar, zoom }, doc] = await Promise.all([import("../lib/charts"), loadDoc()]);
       el.classList.remove("grafik-memuat");
       el.textContent = "";
       const chart = mount(el);
@@ -189,7 +189,7 @@ const clientCtx = {
             },
           },
           yAxis: { ...(base["yAxis"] as object), type: "value", scale: true, axisLabel: { formatter: rpRingkas } },
-          dataZoom: rentang === "bulanan" ? [{ type: "inside" }, { type: "slider", height: 18, bottom: 8 }] : [],
+          dataZoom: rentang === "bulanan" ? zoom() : [],
           series,
         },
         { notMerge: true },

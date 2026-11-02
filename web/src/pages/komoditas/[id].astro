@@ -143,7 +143,7 @@ const clientCtx = {
     if (el?.dataset["ctx"]) {
       const c = JSON.parse(el.dataset["ctx"]) as { url: string; pasar: Record<string, string>; het: number | null };
       const draw = async () => {
-        const [{ mount, baseOption, rp, rpRingkas, warnaPasar }, doc] = await Promise.all([
+        const [{ mount, baseOption, rp, rpRingkas, warnaPasar, zoom }, doc] = await Promise.all([
           import("../../lib/charts"),
           fetch(c.url).then((r) => r.json() as Promise<TrenDoc>),
         ]);
@@ -174,7 +174,7 @@ const clientCtx = {
             axisLabel: { ...((base["xAxis"] as { axisLabel: object }).axisLabel), formatter: (v: string) => tanggalPendek(v) },
           },
           yAxis: { ...(base["yAxis"] as object), type: "value", scale: true, axisLabel: { formatter: rpRingkas } },
-          dataZoom: [{ type: "inside", start }, { type: "slider", start, height: 18, bottom: 8 }],
+          dataZoom: zoom(start),
           series,
         });
       };

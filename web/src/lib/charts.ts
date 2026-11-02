@@ -67,6 +67,27 @@ export function baseOption(): echarts.EChartsCoreOption {
   };
 }
 
+/** dataZoom (geser/cubit + slider) yang mengikuti tema terang/gelap. */
+export function zoom(start = 0): object[] {
+  return [
+    { type: "inside", start },
+    {
+      type: "slider",
+      start,
+      height: 18,
+      bottom: 8,
+      borderColor: cssVar("--garis"),
+      backgroundColor: cssVar("--permukaan-2"),
+      fillerColor: "rgba(127,127,127,0.18)",
+      dataBackground: { lineStyle: { color: cssVar("--teks-redup") }, areaStyle: { color: cssVar("--garis") } },
+      selectedDataBackground: { lineStyle: { color: cssVar("--aksen") }, areaStyle: { color: cssVar("--garis") } },
+      handleStyle: { color: cssVar("--permukaan"), borderColor: cssVar("--teks-redup") },
+      moveHandleStyle: { color: cssVar("--teks-redup") },
+      textStyle: { color: cssVar("--teks-redup") },
+    },
+  ];
+}
+
 /** Inisialisasi chart pada elemen; ikut ukuran kontainer dan bisa dibuang. */
 export function mount(el: HTMLElement): echarts.ECharts {
   const chart = echarts.getInstanceByDom(el) ?? echarts.init(el, undefined, { renderer: "canvas" });
