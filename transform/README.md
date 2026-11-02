@@ -52,6 +52,28 @@ Keputusan pemodelan:
 - Komoditas dipetakan dari **nama** (respons harga tidak memuat id) ke `cat_x`/`com_x` per
   level, dengan normalisasi spasi & huruf.
 
+## Serving layer (untuk web)
+
+Model `models/serving/srv_*` (tabel di DuckDB) memuat logika tampilan yang diuji dbt:
+`srv_harga_bersih` (fakta tanpa `is_outlier`), `srv_tanggal_acuan`, `srv_harga_terkini`
+(harga terbaru + pembanding sebelumnya/7 hari/30 hari/1 tahun dengan *as-of join*, arah, selisih
+vs nasional, status aktif), `srv_seri_harian` (90 hari), `srv_seri_bulanan`, `srv_tren_mingguan`,
+`srv_wilayah`. `pihps.serving export` menulisnya sebagai JSON berkontrak ke `serving/`:
+
+| File | Isi | Batas |
+| --- | --- | --- |
+| `meta.json` | jenis pasar, kategori & komoditas (+HET), wilayah ber-data, statistik | 150 KB |
+| `wilayah/<kode>.json` | per jenis pasar: terkini, seri harian & bulanan (kolumnar) | 300 KB |
+| `peta/<jenis_pasar>.json` | terkini per provinsi per komoditas, kode BPS | 200 KB |
+| `tren/<komoditas>.json` | mingguan nasional per jenis pasar, terkini nasional & provinsi | 200 KB |
+| `_manifest.json` | daftar file, ukuran, sha256, versi skema | – |
+
+Setiap file divalidasi JSON Schema (`src/pihps/serving_schemas/`) dan batas ukurannya; gagal =
+transform gagal dan tidak publish. Situs memvalidasi data yang sama dengan skema yang sama.
+
+`fct_harga_harian.is_outlier` menandai dugaan salah input (harga < Rp500 atau > 3× / < ⅓ median
+±5 hari publikasi di seri yang sama); data tetap ada di marts, serving memakai sel bersih.
+
 ## Tes kualitas data
 
 | Tes | Severity | Arti bila gagal |

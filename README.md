@@ -26,7 +26,7 @@ GitHub Actions (cron harian)
 - [x] Staging & marts (dbt-duckdb) — lihat [transform/README.md](transform/README.md)
 - [ ] Alerting & freshness
 - [ ] Backfill historis (workflow siap; nasional + provinsi dulu)
-- [ ] Web visualisasi
+- [ ] Web visualisasi — Astro + ECharts + serving layer, lihat [web/README.md](web/README.md) (menunggu GitHub Pages aktif)
 
 ## Pengembangan lokal
 
@@ -34,8 +34,11 @@ GitHub Actions (cron harian)
 uv sync
 uv run pytest
 
-# Transformasi (dbt-duckdb): raw lokal di data/raw/pihps -> data/out/{staging,marts}
+# Transformasi (dbt-duckdb): raw lokal di data/raw/pihps -> data/out/{staging,marts,serving}
 uv run python -m pihps.transform run --source local --raw-dir data
+
+# Web: data sintetis -> situs lokal (lihat web/README.md)
+uv run python -m pihps.serving demo --dest web/public/data && (cd web && npm ci && npm run dev)
 uv run python -m pihps.probe   # butuh env R2_* dan TELEGRAM_* untuk cek lengkap
 
 # Extractor: default 7 hari terakhir s.d. hari ini (WIB), 4 jenis pasar, semua level
