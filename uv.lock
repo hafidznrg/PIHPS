@@ -863,6 +863,7 @@ dev = [
 transform = [
     { name = "dbt-duckdb" },
     { name = "duckdb" },
+    { name = "jsonschema" },
 ]
 
 [package.metadata]
@@ -879,6 +880,7 @@ dev = [
 transform = [
     { name = "dbt-duckdb", specifier = ">=1.9" },
     { name = "duckdb", specifier = ">=1.1" },
+    { name = "jsonschema", specifier = ">=4.23" },
 ]
 
 [[package]]

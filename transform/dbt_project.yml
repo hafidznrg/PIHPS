@@ -29,6 +29,11 @@ vars:
   outlier_faktor: 3
   outlier_jendela: 5
   outlier_min_tetangga: 5
+  # Serving: seri harian N hari terakhir; seri dianggap aktif bila data terakhirnya tidak
+  # lebih tua dari N hari dari tanggal acuan; perubahan < ambang % dianggap "tetap".
+  serving_hari_seri_harian: 90
+  serving_hari_aktif: 14
+  serving_ambang_tetap_pct: 0.5
 
 models:
   pihps:
@@ -37,6 +42,9 @@ models:
     marts:
       +materialized: external
       +format: parquet
+    # Serving: tabel di DuckDB; pihps.serving menulisnya sebagai JSON berkontrak ke serving/.
+    serving:
+      +materialized: table
 
 seeds:
   pihps:

@@ -44,7 +44,7 @@ DBT_PROJECT_DIR = REPO_ROOT / "transform"
 MANIFEST_PREFIX = f"{RAW_PREFIX}/_manifests/"
 GRID_ENDPOINT = "GetGridDataDaerah"
 # Prefix keluaran yang dikelola transform. Publish menyinkronkan persis prefix ini.
-OUTPUT_PREFIXES = ("staging/", "marts/")
+OUTPUT_PREFIXES = ("staging/", "marts/", "serving/")
 BUILD_INFO_KEY = "marts/_build.json"
 DOWNLOAD_WORKERS = 16
 
@@ -252,7 +252,8 @@ def publish(store: RemoteStore, out_dir: Path, *, workers: int = 8) -> dict[str,
     sesaat melihat partisi lama yang sebentar lagi dihapus.
     """
     files = local_outputs(out_dir)
-    if not any(k.startswith("marts/fct_harga_harian/") for k in files):
+    required = ("marts/fct_harga_harian/", "serving/meta.json")
+    if not all(any(k.startswith(r) for k in files) for r in required):
         raise RuntimeError(f"keluaran build tidak lengkap di {out_dir}, publish dibatalkan")
 
     def up(item: tuple[str, Path]) -> int:
@@ -553,15 +554,32 @@ def cmd_run(args: argparse.Namespace) -> int:
         except Exception as exc:  # noqa: BLE001 - profil hanya pelengkap laporan
             log.exception("profil data gagal: %s", exc)
         log.info("profil %s", json.dumps(profile, default=str, ensure_ascii=False))
+    serving_info, serving_error = None, None
+    if build.success:
+        from pihps.serving import export
+
+        try:
+            manifest = export(args.db, args.out_dir)
+            sizes = [f["bytes"] for f in manifest["files"]]
+            serving_info = {
+                "files": len(sizes),
+                "bytes": sum(sizes),
+                "largest_bytes": max(sizes),
+                "tanggal_acuan": manifest["tanggal_acuan"],
+            }
+        except Exception as exc:  # noqa: BLE001 - kontrak dilanggar = tidak publish
+            log.exception("export serving gagal")
+            serving_error = f"{type(exc).__name__}: {exc}"
     published = None
     publish_error = None
-    if build.success and args.publish:
+    if build.success and not serving_error and args.publish:
         info = {
             "built_at": datetime.now(UTC).isoformat(),
             "git_sha": git_sha(),
             "sync": sync.as_dict() if sync else None,
             "dbt": build.as_dict(),
             "profile": profile,
+            "serving": serving_info,
         }
         (args.out_dir / BUILD_INFO_KEY).write_text(
             json.dumps(info, indent=2, default=str, ensure_ascii=False)
@@ -573,6 +591,14 @@ def cmd_run(args: argparse.Namespace) -> int:
             publish_error = f"{type(exc).__name__}: {exc}"
 
     report = format_report(sync, build, profile, published)
+    if serving_info:
+        report += (
+            f"\nServing: {serving_info['files']} file JSON, {serving_info['bytes'] / 1e3:.0f} KB, "
+            f"terbesar {serving_info['largest_bytes'] / 1e3:.0f} KB, "
+            f"acuan {serving_info['tanggal_acuan']}"
+        )
+    if serving_error:
+        report += f"\n❌ serving (publish dibatalkan): {serving_error[:300]}"
     if publish_error:
         report += f"\n❌ publish gagal: {publish_error[:200]}"
     print(report)
@@ -583,6 +609,8 @@ def cmd_run(args: argparse.Namespace) -> int:
                 "sync": sync.as_dict() if sync else None,
                 "dbt": build.as_dict(),
                 "profile": profile,
+                "serving": serving_info,
+                "serving_error": serving_error,
                 "publish": published,
                 "publish_error": publish_error,
             },
@@ -591,7 +619,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             ensure_ascii=False,
         )
     )
-    ok = build.success and not publish_error
+    ok = build.success and not serving_error and not publish_error
     if args.notify == "always" or (args.notify == "failure" and not ok):
         _notify(report)
     return EXIT_OK if ok else EXIT_FAILED

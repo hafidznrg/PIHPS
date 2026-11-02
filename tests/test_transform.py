@@ -8,6 +8,7 @@ import duckdb
 import pytest
 from raw_factory import build_raw, write_run
 
+from pihps.serving import export
 from pihps.transform import (
     MANIFEST_PREFIX,
     dbt_build,
@@ -58,6 +59,8 @@ def built(tmp_path_factory):
     root = tmp_path_factory.mktemp("lake")
     build_raw(root)
     res = dbt_build(root, root / "out", root / "pihps.duckdb")
+    if res.success:
+        export(root / "pihps.duckdb", root / "out")
     return root, res
 
 
@@ -290,6 +293,7 @@ def test_publish_uploads_and_removes_stale(tmp_path, built):
 
     result = publish(store, root / "out", workers=2)
     assert "marts/dim_wilayah.parquet" in store.uploads
+    assert "serving/meta.json" in store.uploads
     assert store.deleted == ["staging/stg_pihps__harga/tahun=2017/bulan=6/data_0.parquet"]
     assert keep.exists()  # raw tidak pernah disentuh
     assert result["deleted"] == 1
