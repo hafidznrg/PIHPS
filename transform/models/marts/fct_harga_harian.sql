@@ -9,7 +9,8 @@
 -- nilai kosong ('-') tetap ada di staging untuk audit.
 --
 -- is_outlier MENANDAI (tidak membuang) dugaan salah input di sumber, mis. digit kurang/lebih
--- satu (13.900 vs 139.000) atau Rp100 untuk beras: harga < outlier_harga_min, atau menyimpang
+-- satu (13.900 vs 139.000) atau Rp100 untuk beras: harga < outlier_harga_min atau
+-- > outlier_harga_max (salah input berkepanjangan yang mencemari median), atau menyimpang
 -- lebih dari outlier_faktor x dari median jendela +-outlier_jendela hari publikasi di seri yang
 -- sama (median tahan terhadap satu-dua nilai salah). Serving memakai sel tanpa outlier.
 with harga as (
@@ -42,6 +43,7 @@ select
     harga.harga,
     case
         when harga.harga < {{ var('outlier_harga_min') }} then true
+        when harga.harga > {{ var('outlier_harga_max') }} then true
         when harga.jumlah_tetangga < {{ var('outlier_min_tetangga') }} then false
         else harga.harga > {{ var('outlier_faktor') }} * harga.harga_median_sekitar
             or harga.harga * {{ var('outlier_faktor') }} < harga.harga_median_sekitar

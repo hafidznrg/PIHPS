@@ -222,6 +222,16 @@ def _build_with(tmp_path: Path, overrides: dict[tuple[str, str], str]):
     return dbt_build(tmp_path, tmp_path / "out", tmp_path / "pihps.duckdb")
 
 
+def test_long_running_typo_caught_by_absolute_max(tmp_path):
+    # salah input berhari-hari (median jendela ikut tercemar) tetap tertangkap batas atas
+    days = ["26/10/2026", "27/10/2026", "28/10/2026", "29/10/2026", "30/10/2026"]
+    res = _build_with(tmp_path, {("Daging Sapi Kualitas 2", d): "12,000,000" for d in days})
+    assert res.success, res.errors
+    assert query(
+        tmp_path, f"select count(*) from {FCT} where komoditas_id = 'com_9' and is_outlier"
+    ) == [(5,)]
+
+
 def test_unparseable_price_fails_build(tmp_path):
     res = _build_with(tmp_path, {("Beras", "27/10/2026"): "16.450,5 kg"})
     assert not res.success

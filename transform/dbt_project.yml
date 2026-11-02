@@ -26,6 +26,9 @@ vars:
   # Deteksi outlier (fct_harga_harian.is_outlier): harga di bawah batas absolut, atau
   # menyimpang > faktor x dari median 11 hari publikasi di sekitarnya pada seri yang sama.
   outlier_harga_min: 500
+  # Batas atas absolut: menangkap salah input yang berlangsung lama (mis. Rp12 juta/kg selama
+  # sebulan) sehingga median jendela ikut tercemar. Tidak ada komoditas PIHPS wajar > Rp1 juta/kg.
+  outlier_harga_max: 1000000
   outlier_faktor: 3
   outlier_jendela: 5
   outlier_min_tetangga: 5

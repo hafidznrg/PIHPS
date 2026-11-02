@@ -71,8 +71,9 @@ vs nasional, status aktif), `srv_seri_harian` (90 hari), `srv_seri_bulanan`, `sr
 Setiap file divalidasi JSON Schema (`src/pihps/serving_schemas/`) dan batas ukurannya; gagal =
 transform gagal dan tidak publish. Situs memvalidasi data yang sama dengan skema yang sama.
 
-`fct_harga_harian.is_outlier` menandai dugaan salah input (harga < Rp500 atau > 3× / < ⅓ median
-±5 hari publikasi di seri yang sama); data tetap ada di marts, serving memakai sel bersih.
+`fct_harga_harian.is_outlier` menandai dugaan salah input (harga < Rp500, > Rp1 juta/kg, atau
+> 3× / < ⅓ median ±5 hari publikasi di seri yang sama; batas atas absolut menangkap salah input
+berkepanjangan seperti Rp12 juta/kg selama sebulan yang ikut mencemari median); data tetap ada di marts, serving memakai sel bersih.
 
 ## Tes kualitas data
 
