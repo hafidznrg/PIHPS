@@ -24,9 +24,9 @@ GitHub Actions (cron harian)
 - [x] Probe akses dari GitHub Actions (lihat temuan di docs/api-notes.md)
 - [x] Extractor harian → raw — lihat [docs/raw-layout.md](docs/raw-layout.md)
 - [x] Staging & marts (dbt-duckdb) — lihat [transform/README.md](transform/README.md)
-- [ ] Alerting & freshness
-- [ ] Backfill historis (workflow siap; nasional + provinsi dulu)
-- [ ] Web visualisasi — Astro + ECharts + serving layer, lihat [web/README.md](web/README.md) (menunggu GitHub Pages aktif)
+- [x] Alerting & freshness
+- [x] Backfill historis nasional + provinsi (kab/kota menyusul)
+- [x] Web visualisasi — Astro + ECharts + serving layer di <https://hafidznrg.github.io/PIHPS/>, lihat [web/README.md](web/README.md)
 
 ## Pengembangan lokal
 
