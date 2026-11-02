@@ -8,9 +8,15 @@ on:
     workflows: [transform]
     types: [completed]
   workflow_dispatch:
-  # SEMENTARA: uji build dengan data nyata dari branch fitur (tanpa deploy); hapus sebelum PR siap.
+  # Kode situs / kontrak berubah di main -> terbitkan ulang tanpa menunggu transform berikutnya.
+  # SEMENTARA: branch fitur ikut di daftar untuk uji build data nyata (tanpa deploy); hapus
+  # sebelum PR siap.
   push:
-    branches: [claude/adoring-shannon-wtzodk]
+    branches: [main, claude/adoring-shannon-wtzodk]
+    paths:
+      - "web/**"
+      - "src/pihps/serving_schemas/**"
+      - ".github/workflows/web.yml"
 
 permissions:
   contents: read
