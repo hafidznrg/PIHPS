@@ -23,7 +23,7 @@ mudah dipahami masyarakat awam.
 | F0 Fondasi | Repo, endpoint terdokumentasi, probe lolos 18/19 dari runner GitHub, R2 & Telegram siap | Selesai 1 Nov |
 | F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian aktif mulai 2 Nov |
 | F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Sedang di-review (branch `claude/adoring-shannon-wtzodk`): proyek `transform/` + `pihps.transform` + workflow `transform` (setelah extract/backfill). Run nyata 2 Nov: 6 manifest, 1.236 file raw, 344 ribu baris staging, 63 node dbt lolos (1 warn), 19 Parquet di R2, Telegram terkirim; run ulang dengan cache: sync 0,4 detik |
-| F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Sedang dikerjakan: workflow backfill siap (uji e2e 2 Nov lolos: 4/4 job, 222 request, 1,54 detik/request), backfill penuh nasional + provinsi berjalan sejak 2 Nov 08.15 WIB ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499), ±7 jam); freshness check: workflow `freshness` (`pihps.freshness`) di PR F2 |
+| F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Backfill nasional + provinsi **selesai** 2 Nov ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499)): 40/40 job, 15.940 request, 0 gagal, 1.215 kosong, 403.985 record, 211 MB mentah, 8,2 jam. Freshness check: workflow `freshness` (PR #3). Kab/kota historis menyusul |
 | F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Siap di PR #3, menunggu GitHub Pages diaktifkan: `web/` (Astro + ECharts), serving layer (`srv_*` + `pihps.serving`, 239 file JSON berkontrak), halaman Jelajahi (DuckDB-WASM). Build data nyata 2 Nov: 240 halaman, kontrak & 14 e2e (HP + desktop) lolos. HET menunggu sumber nilai |
 | F5 Analisis & publikasi | Volatilitas, disparitas, musiman, margin rantai pasok; README akhir | Belum |
 
@@ -81,6 +81,11 @@ Temuan run nyata F1 (29–30 Okt 2026, semua jenis pasar & level):
 - `GetRefRegency` mencantumkan wilayah tanpa data: kosong di Pasar Modern (Kota Surakarta,
   Kota Probolinggo, Kota Maumere) dan di Pedagang Besar (Kab. Aceh Besar, Kota Metro).
 - Total respons kosong 18 dari 546 request harga (3,3%; produsen saja 13/178 = 7,3%).
+
+Temuan backfill (2 Nov): respons kosong per jenis pasar tradisional 20, modern 531, pedagang besar
+31, produsen 633 dari 3.985 request masing-masing. Tiga job melewati ambang kosong 50% (job tetap
+hijau, data tersimpan): pasar modern 2018 (51%), produsen 2018 (60%), produsen 2017 (97%) — data
+produsen praktis baru ada sejak 2019, pasar modern jarang sebelum 2019.
 
 Temuan F2 (staging penuh pasar tradisional 2017–2026, 3,15 juta baris):
 
