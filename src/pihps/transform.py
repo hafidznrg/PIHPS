@@ -302,6 +302,14 @@ def profile_outputs(db_path: Path) -> dict[str, Any]:
             """
         ),
         "fakta": one("select count(*) as baris from fct_harga_harian"),
+        # Dipakai pihps.freshness: tanggal harga terbaru seri acuan (nasional, tradisional).
+        "terbaru_nasional_tradisional": one(
+            """
+            select max(tanggal) as tanggal
+            from fct_harga_harian
+            where kode_wilayah = 'nasional' and jenis_pasar_id = 1
+            """
+        )["tanggal"],
         "revisi": one(
             """
             -- sel yang muncul di > 1 file raw dengan nilai berbeda (revisi BI atau koreksi)
