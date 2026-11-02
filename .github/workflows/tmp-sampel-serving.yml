@@ -23,6 +23,6 @@ jobs:
           uv run python -m pihps.serving download --dest d --no-marts
           cd d/serving
           ls wilayah | wc -l; du -sh .
-          tar czf /tmp/s.tgz meta.json peta tren wilayah/nasional.json wilayah/prov-13.json wilayah/prov-26.json wilayah/prov-7.json wilayah/kab-787.json wilayah/kab-36.json wilayah/kab-62.json
+          tar czf /tmp/s.tgz meta.json peta tren wilayah/nasional.json wilayah/prov-13.json wilayah/prov-26.json wilayah/prov-7.json $(ls wilayah/kab-*.json | head -4)
           ls -l /tmp/s.tgz
           echo BEGIN_B64; base64 -w 0 /tmp/s.tgz; echo; echo END_B64
