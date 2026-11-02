@@ -82,6 +82,19 @@ Temuan run nyata F1 (29–30 Okt 2026, semua jenis pasar & level):
   Kota Probolinggo, Kota Maumere) dan di Pedagang Besar (Kab. Aceh Besar, Kota Metro).
 - Total respons kosong 18 dari 546 request harga (3,3%; produsen saja 13/178 = 7,3%).
 
+Temuan F2 (staging penuh pasar tradisional 2017–2026, 3,15 juta baris):
+
+- PIHPS terbit setiap Senin–Jumat, **termasuk libur nasional & cuti bersama** (mis. 24 hari libur
+  di 2025 tetap ada data), tidak pernah di akhir pekan. Apakah nilai hari libur hasil
+  *carry-forward* perlu dicek di F5. Freshness tetap mengecualikan libur (lebih toleran).
+- Sel kosong nasional pasar tradisional: 2017 3,3%, 2018–2022 0,4–2,4%, 0 sejak 2023.
+- Salah input di sumber (tertangkap tes warn): Bengkulu Juni 2017 beras Rp100 & ayam Rp1.100;
+  salah digit (×10) mis. beras pasar modern Sumsel 139.000 → 13.900 (Feb 2025), daging sapi
+  pasar modern Kalteng 14.800 ↔ 147.900 (Jul 2025), minyak curah Papua Barat 11.500 ↔ 65.500
+  (Nov 2019). Dibiarkan di staging (raw apa adanya); penanganan outlier untuk web di F4/F5.
+- Pasar modern identik dengan tradisional hanya 0,84% sel (3.934/470.795).
+- PIHPS punya dua id untuk Kota Surakarta (36 "Kota Surakarta (Solo)" dan 787).
+
 ## Desain penyimpanan
 
 | Layer | Lokasi | Format | Isi |
