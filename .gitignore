@@ -6,7 +6,7 @@ __pycache__/
 .env
 *.har
 probe_result.json
-data/
+/data/
 *.duckdb
 *.duckdb.wal
 extract_manifest.json
