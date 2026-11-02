@@ -23,7 +23,7 @@ GitHub Actions (cron harian)
 - [x] Identifikasi sumber & endpoint — lihat [docs/api-notes.md](docs/api-notes.md)
 - [x] Probe akses dari GitHub Actions (lihat temuan di docs/api-notes.md)
 - [x] Extractor harian → raw — lihat [docs/raw-layout.md](docs/raw-layout.md)
-- [ ] Staging & marts (dbt)
+- [x] Staging & marts (dbt-duckdb) — lihat [transform/README.md](transform/README.md)
 - [ ] Alerting & freshness
 - [ ] Backfill historis (workflow siap; nasional + provinsi dulu)
 - [ ] Web visualisasi
@@ -33,6 +33,9 @@ GitHub Actions (cron harian)
 ```bash
 uv sync
 uv run pytest
+
+# Transformasi (dbt-duckdb): raw lokal di data/raw/pihps -> data/out/{staging,marts}
+uv run python -m pihps.transform run --source local --raw-dir data
 uv run python -m pihps.probe   # butuh env R2_* dan TELEGRAM_* untuk cek lengkap
 
 # Extractor: default 7 hari terakhir s.d. hari ini (WIB), 4 jenis pasar, semua level
