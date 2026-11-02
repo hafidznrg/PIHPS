@@ -1,0 +1,110 @@
+name: web
+
+# F4: bangun situs statis dari serving layer di R2 lalu terbitkan ke GitHub Pages.
+# Berjalan setelah workflow transform sukses (data baru), atau manual. Kontrak data dan e2e
+# diuji pada data NYATA sebelum deploy; deploy hanya dari main.
+on:
+  workflow_run:
+    workflows: [transform]
+    types: [completed]
+  workflow_dispatch:
+  # SEMENTARA: uji build dengan data nyata dari branch fitur (tanpa deploy); hapus sebelum PR siap.
+  push:
+    branches: [claude/adoring-shannon-wtzodk]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SITE_BASE: /${{ github.event.repository.name }}
+      SITE_URL: https://${{ github.repository_owner }}.github.io
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --no-default-groups --group transform
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+
+      - name: Unduh serving & marts dari R2
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          uv run python -m pihps.serving download --dest web/public/data
+          du -sh web/public/data/serving web/public/data/marts
+
+      - name: Kontrak data nyata
+        run: npm test
+        working-directory: web
+      - name: Build
+        run: npm run build
+        working-directory: web
+      - name: E2E pada data nyata
+        working-directory: web
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - name: Ringkasan
+        working-directory: web
+        run: |
+          {
+            echo "## Situs";
+            echo "- halaman: $(find dist -name index.html | wc -l)";
+            echo "- ukuran total: $(du -sh dist | cut -f1)";
+            echo "- tanggal acuan: $(jq -r .tanggal_acuan public/data/serving/meta.json)";
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+      - name: Alert on failure
+        if: failure()
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -sS -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "text=❌ Build situs gagal (kontrak data/e2e): ${URL}" > /dev/null
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Alert on failure
+        if: failure()
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -sS -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "text=❌ Deploy situs gagal: ${URL}" > /dev/null
