@@ -8,9 +8,6 @@ on:
   schedule:
     - cron: "47 10 * * *" # 17.47 WIB, setelah extract 15.00 + transform
   workflow_dispatch:
-  # SEMENTARA: uji run nyata dari branch fitur; hapus sebelum PR siap.
-  push:
-    branches: [claude/adoring-shannon-wtzodk]
 
 permissions:
   contents: read
@@ -33,5 +30,4 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          NOTIFY: ${{ github.event_name == 'push' && 'always' || 'failure' }}
-        run: uv run python -m pihps.freshness --notify "$NOTIFY"
+        run: uv run python -m pihps.freshness --notify failure

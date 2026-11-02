@@ -14,9 +14,6 @@ on:
         description: "unggah hasil ke R2 (staging/, marts/)"
         type: boolean
         default: true
-  # SEMENTARA: uji run nyata dari branch fitur; hapus sebelum PR siap.
-  push:
-    branches: [claude/adoring-shannon-wtzodk]
 
 permissions:
   contents: read
