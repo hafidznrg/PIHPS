@@ -25,7 +25,7 @@ GitHub Actions (cron harian)
 - [x] Extractor harian → raw — lihat [docs/raw-layout.md](docs/raw-layout.md)
 - [ ] Staging & marts (dbt)
 - [ ] Alerting & freshness
-- [ ] Backfill historis
+- [ ] Backfill historis (workflow siap; nasional + provinsi dulu)
 - [ ] Web visualisasi
 
 ## Pengembangan lokal
@@ -46,3 +46,8 @@ Exit code 1 bila ada wilayah yang gagal, silent failure (respons nasional pasar 
 kosong, atau (gagal + kosong) / request harga > 10%), atau manifest gagal ditulis; 2 untuk
 argumen tidak valid. Workflow [`extract`](.github/workflows/extract.yml) berjalan setiap hari
 pukul 15.00 WIB (08:00 UTC) dan selalu mengirim ringkasan ke Telegram.
+
+Backfill historis: workflow [`backfill`](.github/workflows/backfill.yml) (manual) menjalankan
+matriks `jenis_pasar × tahun` secara berurutan lalu mengirim satu ringkasan ke Telegram.
+Rencana jobnya bisa dilihat lokal dengan
+`uv run python -m pihps.backfill plan --last 2026-10-31`.
