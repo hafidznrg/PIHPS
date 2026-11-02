@@ -1,0 +1,89 @@
+name: transform
+
+# F2: raw (R2) -> dbt-duckdb -> staging & marts Parquet (R2). Lihat docs/PLAN.md.
+# Berjalan otomatis setelah extract harian / backfill selesai (sukses maupun gagal sebagian:
+# file yang berhasil tetap tercatat di manifest dan layak diolah).
+# Raw disalin lewat manifest ke data/raw dan di-cache, jadi run harian hanya mengunduh file baru.
+on:
+  workflow_run:
+    workflows: [extract, backfill]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "unggah hasil ke R2 (staging/, marts/)"
+        type: boolean
+        default: true
+  # SEMENTARA: uji run nyata dari branch fitur; hapus sebelum PR siap.
+  push:
+    branches: [claude/adoring-shannon-wtzodk]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: transform
+  cancel-in-progress: false
+
+jobs:
+  transform:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+
+      - name: Restore raw cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/raw
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
+
+      - name: Transform
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          IN_PUBLISH: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}
+        run: |
+          args=(--notify always)
+          [ "$IN_PUBLISH" = "true" ] && args+=(--publish)
+          uv run python -m pihps.transform run "${args[@]}"
+
+      - name: Save raw cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw
+          key: raw-${{ github.run_id }}
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: transform-report
+          path: |
+            transform_report.json
+            transform/target/run_results.json
+            transform/logs/dbt.log
+          if-no-files-found: ignore
+
+      # Jaring pengaman untuk kegagalan sebelum laporan ditulis (install, secret, crash).
+      - name: Alert on crash
+        if: failure() && hashFiles('transform_report.json') == ''
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -sS -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "text=❌ Workflow ${GITHUB_WORKFLOW} gagal sebelum laporan ditulis: ${URL}" > /dev/null
