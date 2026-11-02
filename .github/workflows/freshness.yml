@@ -1,0 +1,37 @@
+name: freshness
+
+# F3: peringatan data basi. Membaca marts/_build.json di R2 (ditulis workflow transform) dan
+# gagal + kirim Telegram bila harga nasional pasar tradisional terbaru > 3 hari kerja lalu
+# atau build terakhir > 30 jam lalu. Terpisah dari transform agar tetap jalan walau
+# extract/transform berhenti terpicu. Lihat docs/PLAN.md (Monitoring & alerting).
+on:
+  schedule:
+    - cron: "47 10 * * *" # 17.47 WIB, setelah extract 15.00 + transform
+  workflow_dispatch:
+  # SEMENTARA: uji run nyata dari branch fitur; hapus sebelum PR siap.
+  push:
+    branches: [claude/adoring-shannon-wtzodk]
+
+permissions:
+  contents: read
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --no-default-groups
+      - name: Freshness check
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTIFY: ${{ github.event_name == 'push' && 'always' || 'failure' }}
+        run: uv run python -m pihps.freshness --notify "$NOTIFY"

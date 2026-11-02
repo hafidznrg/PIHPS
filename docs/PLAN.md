@@ -23,7 +23,7 @@ mudah dipahami masyarakat awam.
 | F0 Fondasi | Repo, endpoint terdokumentasi, probe lolos 18/19 dari runner GitHub, R2 & Telegram siap | Selesai 1 Nov |
 | F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian aktif mulai 2 Nov |
 | F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Sedang di-review (branch `claude/adoring-shannon-wtzodk`): proyek `transform/` + `pihps.transform` + workflow `transform` (setelah extract/backfill). Run nyata 2 Nov: 6 manifest, 1.236 file raw, 344 ribu baris staging, 63 node dbt lolos (1 warn), 19 Parquet di R2, Telegram terkirim; run ulang dengan cache: sync 0,4 detik |
-| F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Sedang dikerjakan: workflow backfill siap (uji e2e 2 Nov lolos: 4/4 job, 222 request, 1,54 detik/request), backfill penuh nasional + provinsi berjalan sejak 2 Nov 08.15 WIB ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499), ±7 jam); freshness check belum |
+| F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Sedang dikerjakan: workflow backfill siap (uji e2e 2 Nov lolos: 4/4 job, 222 request, 1,54 detik/request), backfill penuh nasional + provinsi berjalan sejak 2 Nov 08.15 WIB ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499), ±7 jam); freshness check: workflow `freshness` (`pihps.freshness`) di PR F2 |
 | F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Belum |
 | F5 Analisis & publikasi | Volatilitas, disparitas, musiman, margin rantai pasok; README akhir | Belum |
 
@@ -103,7 +103,7 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | --- | --- | --- |
 | Workflow gagal / crash | `if: failure()` | Telegram + link run |
 | Kegagalan senyap | Nasional pasar tradisional kosong, atau (gagal + kosong) / total request harga > 10% | Run berstatus gagal |
-| Data basi | Job freshness: tanggal data terbaru > 3 hari kerja | Peringatan Telegram |
+| Data basi | Workflow `freshness` (17.47 WIB): harga nasional pasar tradisional terbaru > 3 hari kerja, atau `marts/_build.json` > 30 jam | Run gagal + Telegram |
 | Cron tidak jalan | Ringkasan harian (selalu dikirim, sukses maupun gagal) tidak masuk | Ketiadaan pesan |
 | Kualitas data | dbt tests: unik, not null, relationships, harga raw terparse (error); rentang harga wajar, lonjakan, kelengkapan nasional (warn) | Error: workflow `transform` gagal, publish dibatalkan, Telegram. Warn: tetap publish, jumlah di ringkasan Telegram |
 
@@ -151,3 +151,4 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | 2 Nov 2026 | `dim_wilayah` SCD2 diturunkan ulang dari semua snapshot referensi di raw (bukan `dbt snapshot`); versi pertama berlaku sejak 2017-06-01 | Raw immutable = histori lengkap, tanpa state yang bisa hilang; fakta backfill tetap tergabung |
 | 2 Nov 2026 | Publish = unggah dulu, lalu hapus objek basi di `staging/` & `marts/`; hanya bila tidak ada tes `error` | Isi R2 selalu = build terakhir yang lolos; pembaca tidak pernah melihat prefix kosong |
 | 2 Nov 2026 | Workflow `transform` dipicu `workflow_run` setelah `extract`/`backfill` (kecuali dibatalkan), Telegram setiap run | Data berhasil sebagian tetap diolah; ringkasan jadi heartbeat kedua |
+| 2 Nov 2026 | Freshness membaca `marts/_build.json` (bukan raw); hari kerja = Senin–Jumat tanpa kalender libur | Sekaligus mendeteksi transform yang berhenti; libur nasional = keputusan terbuka (bisa alarm palsu saat Lebaran) |
