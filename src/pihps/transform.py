@@ -367,14 +367,17 @@ def profile_outputs(db_path: Path) -> dict[str, Any]:
         "lonjakan_per_jenis_pasar": rows(
             """
             with seri as (
-                select *, lag(harga) over (
-                    partition by jenis_pasar_id, kode_wilayah, komoditas_id order by tanggal
-                ) as sebelumnya
+                select *,
+                    lag(harga) over w as sebelumnya, lag(tanggal) over w as tanggal_sebelumnya
                 from fct_harga_harian
+                window w as (
+                    partition by jenis_pasar_id, kode_wilayah, komoditas_id order by tanggal
+                )
             )
             select jenis_pasar_id, count(*) as lonjakan
             from seri
-            where harga > 3 * sebelumnya or harga * 3 < sebelumnya
+            where tanggal - tanggal_sebelumnya <= 7
+              and (harga > 3 * sebelumnya or harga * 3 < sebelumnya)
             group by all order by jenis_pasar_id
             """
         ),
@@ -391,7 +394,8 @@ def profile_outputs(db_path: Path) -> dict[str, Any]:
             select jenis_pasar_id, kode_wilayah, komoditas_id, tanggal_sebelumnya,
                    sebelumnya, tanggal, harga
             from seri
-            where harga > 3 * sebelumnya or harga * 3 < sebelumnya
+            where tanggal - tanggal_sebelumnya <= 7
+              and (harga > 3 * sebelumnya or harga * 3 < sebelumnya)
             order by greatest(harga / sebelumnya, sebelumnya / harga) desc limit 10
             """
         ),
