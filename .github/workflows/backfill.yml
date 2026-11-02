@@ -51,7 +51,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: uv sync --frozen
+      - run: uv sync --frozen --no-default-groups
       - id: plan
         run: |
           uv run python -m pihps.backfill plan \
@@ -73,7 +73,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: uv sync --frozen
+      - run: uv sync --frozen --no-default-groups
 
       - name: Extract
         env:
@@ -118,7 +118,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: uv sync --frozen
+      - run: uv sync --frozen --no-default-groups
       - run: mkdir -p manifests
       - uses: actions/download-artifact@v4
         continue-on-error: true

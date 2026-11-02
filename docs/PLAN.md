@@ -24,7 +24,7 @@ mudah dipahami masyarakat awam.
 | F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian aktif mulai 2 Nov |
 | F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Selesai 2 Nov (PR #3). Data penuh: 8,74 juta baris staging 2017-06-01 → 2026-10-30, 203 wilayah; dbt 130 detik; 196 sel outlier ditandai; Parquet + 239 file serving di R2; Telegram terkirim |
 | F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Selesai 2 Nov untuk nasional + provinsi: backfill 40/40 job, 15.940 request, 0 gagal, 403.985 record, 8,2 jam ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499)); workflow `freshness` harian (PR #3). Kab/kota historis menyusul |
-| F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Siap di PR #3: build data penuh 240 halaman, kontrak & 14 e2e lolos; terbit ke GitHub Pages setelah merge. HET menunggu sumber nilai |
+| F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Selesai 2 Nov (PR #3): tayang di <https://hafidznrg.github.io/PIHPS/>; deploy pertama dari `main` sukses (240 halaman, kontrak & 14 e2e data nyata lolos). Berikutnya: HET (menunggu sumber nilai) |
 | F5 Analisis & publikasi | Volatilitas, disparitas, musiman, margin rantai pasok; README akhir | Belum |
 
 F1–F3 diprioritaskan selama kredit sesi cloud Claude Code masih ada (habis 5 Nov 2026, 14.59 WIB).
@@ -190,3 +190,4 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | 2 Nov 2026 | Serving ditulis Python dari model dbt (bukan COPY JSON DuckDB); format kolumnar ringkas (array tanggal bersama + array harga) | Nama file per wilayah/komoditas tetap dan struktur bersarang; ukuran kecil untuk HP |
 | 2 Nov 2026 | Hosting GitHub Pages; Parquet marts ikut disajikan dari origin situs untuk halaman Jelajahi | Tanpa bucket R2 publik/CORS dan tanpa secret baru; pembacaan Parquet via HTTP range |
 | 2 Nov 2026 | Outlier juga = harga > Rp1 juta/kg | Salah input berkepanjangan (Bengkulu produsen daging sapi Rp12 juta/kg sebulan) mencemari median jendela sehingga aturan relatif saja tidak cukup |
+| 2 Nov 2026 | Workflow produksi memasang dependency minimum: extract/backfill/probe/freshness `--no-default-groups`, transform/web `--group transform`; grup `dev` (+`transform`) tetap default untuk lokal & CI | Run harian tidak perlu dbt/duckdb/pytest; lebih cepat dan permukaan dependency lebih kecil |
