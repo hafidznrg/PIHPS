@@ -1,0 +1,35 @@
+name: tmp-dump-wilayah
+# SEMENTARA: cetak daftar kab/kota PIHPS dari marts/dim_wilayah.parquet untuk menyusun seed BPS.
+on:
+  push:
+    branches: [claude/adoring-shannon-wtzodk]
+    paths: [.github/workflows/tmp-dump-wilayah.yml]
+permissions:
+  contents: read
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          uv run python - <<'PY'
+          import duckdb
+          from pihps.config import R2Config
+          from pihps.storage import R2Storage
+          R2Storage(R2Config.from_env()).download_file("marts/dim_wilayah.parquet", "w.parquet")
+          rows = duckdb.sql("""select kabkota_id, provinsi_id, kode_bps_provinsi, nama
+            from 'w.parquet' where level_wilayah = 'kabkota' and is_current
+            order by provinsi_id, kabkota_id""").fetchall()
+          print("BEGIN_KABKOTA")
+          for r in rows:
+              print("KK|" + "|".join(str(x) for x in r))
+          print("END_KABKOTA", len(rows))
+          PY
