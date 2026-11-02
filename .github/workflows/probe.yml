@@ -20,7 +20,7 @@ jobs:
           enable-cache: true
 
       - name: Install
-        run: uv sync --frozen
+        run: uv sync --frozen --no-default-groups
 
       - name: Network sanity check
         run: |

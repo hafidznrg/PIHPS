@@ -21,6 +21,31 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest -q
 
+  # Dependency persis seperti workflow produksi: extract/backfill/probe/freshness tanpa grup
+  # tambahan; transform/web dengan grup transform saja (tanpa dev).
+  deps-produksi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Runtime minimum
+        run: |
+          uv sync --frozen --no-default-groups
+          for m in extract backfill probe freshness notify storage; do
+            uv run --no-sync python -c "import pihps.$m"
+          done
+          uv run --no-sync python -m pihps.extract --help > /dev/null
+          uv run --no-sync python -m pihps.backfill plan --first 2026-01-01 --last 2026-02-01 --price-types 1 > /dev/null
+      - name: Grup transform (tanpa dev)
+        run: |
+          uv sync --frozen --no-default-groups --group transform
+          uv run --no-sync python -m pihps.serving demo --dest /tmp/situs --work /tmp/demo \
+            --start 2026-08-01 --end 2026-10-30
+          test -f /tmp/situs/serving/meta.json
+
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 20
