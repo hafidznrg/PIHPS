@@ -72,6 +72,8 @@ def test_summarize_all_success():
     assert ok
     assert totals["success"] == 2 and totals["requests"] == 846 and totals["empty"] == 4
     assert report.startswith("✅ PIHPS backfill (2/2 job sukses)")
+    # urutan job tahun terbaru dulu, tetapi rentang dilaporkan dari tanggal terkecil
+    assert "Rentang 2025-01-01 … 2026-03-31" in report
 
 
 def test_summarize_reports_failed_and_missing():

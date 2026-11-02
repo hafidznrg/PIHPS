@@ -111,7 +111,7 @@ def summarize(
     hours = totals["duration_s"] / 3600
     lines = [
         f"{icon} PIHPS backfill ({totals['success']}/{totals['jobs']} job sukses)",
-        f"Rentang {jobs[0]['start'] if jobs else '-'} … "
+        f"Rentang {min((j['start'] for j in jobs), default='-')} … "
         f"{max((j['end'] for j in jobs), default='-')}",
         f"{totals['requests']} request, {totals['failed_requests']} gagal, "
         f"{totals['empty']} kosong, {totals['records']} record, "
