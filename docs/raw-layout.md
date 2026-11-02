@@ -58,4 +58,12 @@ bukan glob buta atas prefix.
    level dicatat di `summary.grid_empty_by_level`, rasionya di `summary.empty_or_failed_ratio`.
 4. Manifest gagal ditulis ke R2.
 
+Ambang rasio diatur dengan `--max-empty-ratio` (default 0,10 untuk run harian; backfill memakai
+0,5 karena tahun-tahun awal memang jarang datanya). Nilainya tercatat di `params` manifest.
+
+**Circuit breaker**: setelah `--max-consecutive-failures` (default 10) request/upload gagal
+berturut-turut, run berhenti (`summary.aborted: true`) agar tidak terus membebani server yang
+menolak. Kode keluar: 0 sukses, 1 gagal, 2 argumen tidak valid, 3 dihentikan (circuit breaker
+atau error tak terduga).
+
 Peringatan (tidak menggagalkan run): jumlah provinsi dari `GetRefProvince` ≠ 34.

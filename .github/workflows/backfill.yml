@@ -1,0 +1,135 @@
+name: backfill
+
+# Backfill historis PIHPS -> R2 raw/. Matriks jenis_pasar x tahun, satu job per sel, berurutan
+# (max-parallel: 1) agar beban ke server tetap 1 request / 1,5 detik. Lihat docs/PLAN.md.
+#
+# Kode keluar extractor per job:
+#   0 sukses; 1 sebagian gagal / ambang kosong terlampaui (job tetap hijau + warning, data
+#   tersimpan, detail di manifest); 3 circuit breaker / crash -> job merah dan fail-fast
+#   membatalkan job sisanya (indikasi diblokir atau server mati).
+on:
+  workflow_dispatch:
+    inputs:
+      first:
+        description: "tanggal awal YYYY-MM-DD"
+        default: "2017-06-01"
+      last:
+        description: "tanggal akhir YYYY-MM-DD (cron harian mengambil ulang 7 hari terakhir)"
+        default: "2026-10-31"
+      price_types:
+        description: "price_type_id dipisah koma"
+        default: "1,2,3,4"
+      levels:
+        description: "nasional,provinsi[,kabkota]"
+        default: "nasional,provinsi"
+      max_empty_ratio:
+        description: "ambang (gagal + kosong) / request harga per job"
+        default: "0.5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backfill
+  cancel-in-progress: false
+
+env:
+  IN_FIRST: ${{ inputs.first || '2017-06-01' }}
+  IN_LAST: ${{ inputs.last || '2026-10-31' }}
+  IN_PRICE_TYPES: ${{ inputs.price_types || '1,2,3,4' }}
+  IN_LEVELS: ${{ inputs.levels || 'nasional,provinsi' }}
+  IN_MAX_EMPTY_RATIO: ${{ inputs.max_empty_ratio || '0.5' }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - id: plan
+        run: |
+          uv run python -m pihps.backfill plan \
+            --first "$IN_FIRST" --last "$IN_LAST" --price-types "$IN_PRICE_TYPES" > plan.json
+          echo "matrix=$(cat plan.json)" >> "$GITHUB_OUTPUT"
+          echo "$(jq '.include | length' plan.json) job: $(jq -c '[.include[].name]' plan.json)"
+
+  backfill:
+    needs: plan
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+
+      - name: Extract
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          JOB_START: ${{ matrix.start }}
+          JOB_END: ${{ matrix.end }}
+          JOB_PRICE_TYPE: ${{ matrix.price_type }}
+          JOB_NAME: ${{ matrix.name }}
+        run: |
+          set +e
+          uv run python -m pihps.extract \
+            --start "$JOB_START" --end "$JOB_END" --price-types "$JOB_PRICE_TYPE" \
+            --levels "$IN_LEVELS" --max-empty-ratio "$IN_MAX_EMPTY_RATIO" \
+            --notify failure --manifest-out extract_manifest.json
+          code=$?
+          case "$code" in
+            0) ;;
+            1) echo "::warning::$JOB_NAME selesai dengan kegagalan sebagian; lihat manifest" ;;
+            *) echo "::error::$JOB_NAME berhenti (exit $code); job sisanya dibatalkan"; exit "$code" ;;
+          esac
+
+      - name: Upload manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest-${{ matrix.name }}
+          path: extract_manifest.json
+          if-no-files-found: ignore
+
+  summary:
+    needs: [plan, backfill]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: mkdir -p manifests
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: manifest-*
+          path: manifests
+      - name: Summary
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PLAN: ${{ needs.plan.outputs.matrix }}
+        run: |
+          printf '%s' "$PLAN" > plan.json
+          uv run python -m pihps.backfill summary --plan plan.json --manifests manifests --notify

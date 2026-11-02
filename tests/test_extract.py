@@ -351,3 +351,51 @@ def test_telegram_html_is_escaped():
 
     out = to_telegram_html("❌ judul <x>\nerror: <html> & lain")
     assert out == "<b>❌ judul &lt;x&gt;</b>\nerror: &lt;html&gt; &amp; lain"
+
+
+# ------------------------------------------------------ circuit breaker & ambang
+def test_circuit_breaker_aborts_after_consecutive_failures(tmp_path):
+    handler, calls = make_server(
+        fail={("GetGridDataDaerah", "")} | {("GetGridDataDaerah", p) for p in PROV_IDS}
+    )
+    client = PihpsClient(min_interval=0, max_retries=1, transport=httpx.MockTransport(handler))
+    params = RunParams(date(2026, 10, 26), date(2026, 11, 1), [1], ["nasional", "provinsi"])
+    m = Extractor(
+        client, LocalSink(tmp_path), params, RUN_ID, INGEST, max_consecutive_failures=5
+    ).run()
+
+    assert m["status"] == "failed"
+    assert m["summary"]["aborted"] is True
+    # 3 ref OK, lalu nasional + 4 provinsi gagal -> berhenti, tidak lanjut ke 30 provinsi lain
+    assert m["summary"]["requests_total"] == 3 + 5
+    assert len(calls) == 3 + 5
+    assert any("kegagalan beruntun" in w for w in m["warnings"])
+    assert m["params"]["max_consecutive_failures"] == 5
+
+
+def test_circuit_breaker_resets_on_success(tmp_path):
+    handler, _ = make_server(fail={("GetGridDataDaerah", p) for p in PROV_IDS[:2]})
+    client = PihpsClient(min_interval=0, max_retries=1, transport=httpx.MockTransport(handler))
+    params = RunParams(date(2026, 10, 26), date(2026, 11, 1), [1], ["nasional", "provinsi"])
+    m = Extractor(
+        client, LocalSink(tmp_path), params, RUN_ID, INGEST, max_consecutive_failures=3
+    ).run()
+    assert m["summary"]["aborted"] is False
+    assert m["summary"]["requests_total"] == 3 + 35
+
+
+def test_max_empty_ratio_is_configurable(tmp_path):
+    handler, _ = make_server(empty=set(PROV_IDS[:4]))  # 4/35 = 11,4%
+    client = PihpsClient(min_interval=0, max_retries=1, transport=httpx.MockTransport(handler))
+    params = RunParams(date(2026, 10, 26), date(2026, 11, 1), [1], ["nasional", "provinsi"])
+    m = Extractor(client, LocalSink(tmp_path), params, RUN_ID, INGEST, max_empty_ratio=0.5).run()
+    assert m["status"] == "success"
+    assert m["params"]["max_empty_ratio"] == 0.5
+    assert m["summary"]["grid_empty_by_level"]["provinsi"] == 4
+
+
+def test_cli_rejects_invalid_thresholds(tmp_path):
+    from pihps.extract import EXIT_USAGE, main
+
+    assert main(["--local-dir", str(tmp_path), "--max-empty-ratio", "1.5"]) == EXIT_USAGE
+    assert main(["--local-dir", str(tmp_path), "--max-consecutive-failures", "0"]) == EXIT_USAGE
