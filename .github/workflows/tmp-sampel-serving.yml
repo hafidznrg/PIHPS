@@ -1,0 +1,28 @@
+name: tmp-sampel-serving
+# SEMENTARA: cetak sampel serving nyata (base64 tar.gz) untuk QA visual lokal; dihapus setelahnya.
+on:
+  push:
+    branches: [claude/adoring-shannon-wtzodk]
+    paths: [.github/workflows/tmp-sampel-serving.yml]
+permissions:
+  contents: read
+jobs:
+  sampel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --no-default-groups
+      - env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          uv run python -m pihps.serving download --dest d --no-marts
+          cd d/serving
+          ls wilayah | wc -l; du -sh .
+          tar czf /tmp/s.tgz meta.json peta tren wilayah/nasional.json wilayah/prov-13.json wilayah/prov-26.json wilayah/prov-7.json wilayah/kab-787.json wilayah/kab-36.json wilayah/kab-62.json
+          ls -l /tmp/s.tgz
+          echo BEGIN_B64; base64 -w 0 /tmp/s.tgz; echo; echo END_B64
