@@ -49,6 +49,17 @@ SENTINEL_PRICE_TYPE = 1
 # Ambang silent failure kedua (docs/PLAN.md): (gagal + kosong) / total request harga.
 MAX_EMPTY_OR_FAILED_RATIO = 0.10
 EMPTY_COUNTED_LEVELS = ("provinsi", "kabkota")
+# Circuit breaker: hentikan run setelah sekian kegagalan beruntun (server menolak/mati,
+# atau R2 bermasalah) supaya tidak terus mengirim ratusan request x retry.
+MAX_CONSECUTIVE_FAILURES = 10
+
+EXIT_OK, EXIT_FAILED, EXIT_USAGE, EXIT_ABORTED = 0, 1, 2, 3
+
+
+class CircuitOpen(RuntimeError):
+    """Terlalu banyak kegagalan beruntun; run dihentikan."""
+
+
 EXPECTED_PROVINCES = 34
 
 
@@ -210,7 +221,21 @@ class Extractor:
     warnings: list[str] = field(default_factory=list)
     silent_failures: list[dict[str, Any]] = field(default_factory=list)
     provinces: list[dict[str, Any]] = field(default_factory=list)
+    max_empty_ratio: float = MAX_EMPTY_OR_FAILED_RATIO
+    max_consecutive_failures: int = MAX_CONSECUTIVE_FAILURES
     _written: set[str] = field(default_factory=set)
+    _consecutive_failures: int = 0
+
+    def _record_outcome(self, ok: bool) -> None:
+        if ok:
+            self._consecutive_failures = 0
+            return
+        self._consecutive_failures += 1
+        if self._consecutive_failures >= self.max_consecutive_failures:
+            raise CircuitOpen(
+                f"{self._consecutive_failures} kegagalan beruntun, run dihentikan "
+                "(server menolak/tidak tersedia atau R2 bermasalah)"
+            )
 
     # ----------------------------------------------------------- satu request
     def fetch_and_store(
@@ -267,6 +292,7 @@ class Extractor:
             entry.update(url=exc.url, http_status=exc.status_code, error=str(exc))
             entry["fetched_at"] = datetime.now(UTC).isoformat()
             log.error("FAIL %s %s=%s: %s", api_endpoint, level, level_id, exc)
+            self._record_outcome(False)
             return None
 
         sha = hashlib.sha256(raw.body).hexdigest()
@@ -290,9 +316,11 @@ class Extractor:
         except Exception as exc:  # noqa: BLE001 - kegagalan upload dicatat, run lanjut
             entry["error"] = f"upload gagal: {type(exc).__name__}: {exc}"
             log.error("FAIL upload %s: %s", key, exc)
+            self._record_outcome(False)
             return raw
 
         self._written.add(key)
+        self._record_outcome(True)
         entry["ok"] = True
         log.info("OK   %s (%d record, %d B)", key, entry["records"], len(raw.body))
         return raw
@@ -428,14 +456,14 @@ class Extractor:
         n_failed = sum(1 for f in grid if not f["ok"])
         n_empty = sum(empty_by_level[lv] for lv in EMPTY_COUNTED_LEVELS)
         ratio = (n_failed + n_empty) / len(grid) if grid else 0.0
-        if ratio > MAX_EMPTY_OR_FAILED_RATIO:
+        if ratio > self.max_empty_ratio:
             item = {
                 "check": "rasio (gagal + kosong) / request harga",
                 "start_date": self.params.start.isoformat(),
                 "end_date": self.params.end.isoformat(),
                 "reason": (
                     f"{n_failed} gagal + {n_empty} kosong dari {len(grid)} request = "
-                    f"{ratio:.1%} > {MAX_EMPTY_OR_FAILED_RATIO:.0%}"
+                    f"{ratio:.1%} > {self.max_empty_ratio:.0%}"
                 ),
             }
             self.silent_failures.append(item)
@@ -466,6 +494,10 @@ class Extractor:
         try:
             regencies = self.fetch_refs()
             self.fetch_grids(regencies)
+        except CircuitOpen as exc:
+            log.error("CIRCUIT BREAKER: %s", exc)
+            self.warn(f"run berhenti: {exc}")
+            aborted = True
         except Exception as exc:  # noqa: BLE001 - bug tak terduga tetap menghasilkan manifest
             log.exception("run berhenti karena error tak terduga")
             self.warn(f"run berhenti: {type(exc).__name__}: {exc}")
@@ -484,7 +516,11 @@ class Extractor:
             "status": status,
             "started_at": started_at.isoformat(),
             "finished_at": datetime.now(UTC).isoformat(),
-            "params": self.params.as_dict(),
+            "params": {
+                **self.params.as_dict(),
+                "max_empty_ratio": self.max_empty_ratio,
+                "max_consecutive_failures": self.max_consecutive_failures,
+            },
             "summary": {
                 "requests_total": len(self.files),
                 "http_attempts": self.client.n_requests,
@@ -599,6 +635,20 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help=f"jeda minimum antar-request, detik (>= {MIN_INTERVAL_S})",
     )
     ap.add_argument(
+        "--max-empty-ratio",
+        type=float,
+        default=MAX_EMPTY_OR_FAILED_RATIO,
+        help="ambang (gagal + kosong) / request harga sebelum run dianggap gagal "
+        f"(default {MAX_EMPTY_OR_FAILED_RATIO}; backfill memakai nilai lebih longgar)",
+    )
+    ap.add_argument(
+        "--max-consecutive-failures",
+        type=int,
+        default=MAX_CONSECUTIVE_FAILURES,
+        help=f"circuit breaker: hentikan run setelah N kegagalan beruntun "
+        f"(default {MAX_CONSECUTIVE_FAILURES}, exit code {EXIT_ABORTED})",
+    )
+    ap.add_argument(
         "--manifest-out",
         type=Path,
         default=Path("extract_manifest.json"),
@@ -626,9 +676,12 @@ def resolve_range(
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     args = build_arg_parser().parse_args(argv)
+    if not 0 <= args.max_empty_ratio <= 1 or args.max_consecutive_failures < 1:
+        log.error("--max-empty-ratio harus 0..1 dan --max-consecutive-failures >= 1")
+        return EXIT_USAGE
     if args.min_interval < MIN_INTERVAL_S:
         log.error("--min-interval minimal %.1f detik (sopan ke server)", MIN_INTERVAL_S)
-        return 2
+        return EXIT_USAGE
 
     now = datetime.now(TZ_WIB)
     run_id = now.strftime("%Y%m%dT%H%M%S")
@@ -636,7 +689,7 @@ def main(argv: list[str] | None = None) -> int:
         start, end = resolve_range(args.start, args.end, args.days, now.date())
     except ValueError as exc:
         log.error("%s", exc)
-        return 2
+        return EXIT_USAGE
     params = RunParams(start, end, args.price_types, args.levels)
 
     if args.local_dir:
@@ -651,7 +704,15 @@ def main(argv: list[str] | None = None) -> int:
 
     log.info("run_id=%s rentang %s → %s, params=%s", run_id, start, end, params.as_dict())
     with PihpsClient(min_interval=args.min_interval) as client:
-        manifest = Extractor(client, sink, params, run_id, now.date()).run()
+        manifest = Extractor(
+            client,
+            sink,
+            params,
+            run_id,
+            now.date(),
+            max_empty_ratio=args.max_empty_ratio,
+            max_consecutive_failures=args.max_consecutive_failures,
+        ).run()
 
     mkey = manifest_key(now.date(), run_id)
     manifest_ok = True
@@ -679,7 +740,9 @@ def main(argv: list[str] | None = None) -> int:
             log.info("notifikasi Telegram %s", "terkirim" if sent else "TIDAK terkirim")
         except Exception as exc:  # noqa: BLE001 - notifikasi tidak boleh mengubah exit code
             log.error("notifikasi Telegram gagal: %s", exc)
-    return 0 if ok else 1
+    if manifest["summary"]["aborted"]:
+        return EXIT_ABORTED
+    return EXIT_OK if ok else EXIT_FAILED
 
 
 if __name__ == "__main__":
