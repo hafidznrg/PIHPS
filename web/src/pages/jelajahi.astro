@@ -1,0 +1,213 @@
+---
+// Jelajahi: SQL di peramban (DuckDB-WASM) langsung atas Parquet marts yang ikut disajikan
+// situs. Mesin (±7 MB terkompresi) baru diunduh setelah pengguna menekan "Mulai".
+import { readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
+import Base from "../layouts/Base.astro";
+import contoh from "../data/contoh-kueri.json";
+import { getMeta } from "../lib/data";
+import { angka } from "../lib/format";
+import { VIEWS } from "../lib/duck";
+import { BASE, dataUrl } from "../lib/url";
+
+const meta = getMeta();
+const martsDir = join(process.env.PIHPS_DATA_DIR ?? join(process.cwd(), "public", "data"), "marts");
+const walk = (d: string): string[] =>
+  readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]));
+const semua = walk(martsDir).filter((f) => f.endsWith(".parquet"));
+const fakta = semua
+  .filter((f) => f.includes("fct_harga_harian"))
+  .map((f) => relative(martsDir, f).split("\\").join("/"))
+  .sort();
+const ukuranMb = semua.reduce((s, f) => s + statSync(f).size, 0) / 1e6;
+const sumber = {
+  base: dataUrl("marts/"),
+  fakta,
+  lokal: import.meta.env.PUBLIC_DUCKDB_BUNDLE === "local",
+};
+const awal = contoh[0]!;
+---
+
+<Base
+  title="Jelajahi data dengan SQL"
+  description="Tulis kueri SQL langsung di peramban atas seluruh data harga pangan PIHPS sejak 2017, tanpa server, memakai DuckDB-WASM dan Parquet."
+  aktif="jelajahi"
+>
+  <section class="hero">
+    <h1>Jelajahi data</h1>
+    <p class="hero__ket">
+      Untuk yang ingin menggali lebih dalam: tulis kueri SQL atas {angka(meta.statistik.sel_harga)} data harga harian. Kueri berjalan di
+      peramban Anda dengan <a href="https://duckdb.org/docs/api/wasm/overview" rel="noopener">DuckDB-WASM</a>, membaca file Parquet yang sama
+      dengan gudang data proyek ini ({ukuranMb.toFixed(0)} MB, dibaca sebagian sesuai kebutuhan). Tidak ada server.
+    </p>
+  </section>
+
+  <section class="bagian panel" id="jelajahi" data-sumber={JSON.stringify(sumber)} data-base={BASE}>
+    <div class="bagian__kepala">
+      <h2>Kueri</h2>
+      <p class="catatan" id="status" role="status">Mesin belum dimuat (unduhan ±7 MB sekali).</p>
+    </div>
+    <div class="chip-baris" role="group" aria-label="Contoh kueri">
+      {contoh.map((c, i) => (
+        <button type="button" class="chip" data-contoh={i}>{c.judul}</button>
+      ))}
+    </div>
+    <label for="sql" class="sr-only">Kueri SQL</label>
+    <textarea id="sql" class="editor-sql" rows="12" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off">{awal.sql}</textarea>
+    <div class="kontrol">
+      <button type="button" class="tombol" id="jalankan">Mulai &amp; jalankan</button>
+      <button type="button" class="tombol tombol--garis" id="unduh" disabled>Unduh CSV</button>
+      <span class="catatan">Ctrl/⌘ + Enter untuk menjalankan. Maksimal 1.000 baris ditampilkan.</span>
+    </div>
+    <div id="grafik-hasil" class="grafik" hidden role="img" aria-label="Grafik hasil kueri"></div>
+    <div id="hasil" class="tabel-wadah" aria-live="polite"></div>
+  </section>
+
+  <section class="bagian prosa">
+    <h2>Tabel yang tersedia</h2>
+    <ul>
+      {Object.entries(VIEWS).map(([nama, ket]) => (
+        <li><code>{nama}</code> — {ket}</li>
+      ))}
+    </ul>
+    <p>
+      Gabungkan fakta dengan dimensi lewat <code>wilayah_sk</code> (versi wilayah yang berlaku pada tanggal itu), <code>komoditas_id</code>,
+      dan <code>jenis_pasar_id</code>. Kolom <code>is_outlier</code> menandai dugaan salah input di sumber; data asli tidak dibuang.
+      Ketik <code>describe harga</code> untuk melihat kolom.
+    </p>
+    <div id="skema"></div>
+  </section>
+
+  <script>
+    import contoh from "../data/contoh-kueri.json";
+    import { escape } from "../lib/html";
+    import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
+    import type { Hasil, Sumber } from "../lib/duck";
+
+    const root = document.getElementById("jelajahi")!;
+    const sumber = JSON.parse(root.dataset["sumber"]!) as Sumber;
+    const siteBase = root.dataset["base"]!;
+    const sql = document.getElementById("sql") as HTMLTextAreaElement;
+    const tombol = document.getElementById("jalankan") as HTMLButtonElement;
+    const unduh = document.getElementById("unduh") as HTMLButtonElement;
+    const status = document.getElementById("status")!;
+    const hasilEl = document.getElementById("hasil")!;
+    const grafikEl = document.getElementById("grafik-hasil")!;
+    const skemaEl = document.getElementById("skema")!;
+    let conP: Promise<AsyncDuckDBConnection> | null = null;
+    let terakhir: Hasil | null = null;
+
+    const duckP = () => import("../lib/duck");
+
+    function koneksi() {
+      conP ??= (async () => {
+        status.textContent = "Memuat mesin DuckDB-WASM…";
+        const { buka, jalankan } = await duckP();
+        const con = await buka(sumber, siteBase);
+        status.textContent = "Siap.";
+        tombol.textContent = "Jalankan";
+        void tampilkanSkema(con, jalankan);
+        return con;
+      })();
+      conP.catch(() => (conP = null));
+      return conP;
+    }
+
+    async function tampilkanSkema(con: AsyncDuckDBConnection, jalankan: typeof import("../lib/duck").jalankan) {
+      const r = await jalankan(con, "select table_name, column_name, data_type from information_schema.columns where table_schema = 'main' order by table_name, ordinal_position");
+      const per = new Map<string, string[]>();
+      for (const [t, c, d] of r.baris as [string, string, string][]) per.set(t, [...(per.get(t) ?? []), `${c} ${d.toLowerCase()}`]);
+      skemaEl.innerHTML = [...per]
+        .map(([t, cols]) => `<details><summary><code>${escape(t)}</code></summary><p class="catatan">${cols.map((c) => `<code>${escape(c)}</code>`).join(" ")}</p></details>`)
+        .join("");
+    }
+
+    function tabel(h: Hasil): string {
+      if (h.kolom.length === 0) return `<p class="catatan">Selesai (${h.ms.toFixed(0)} ms).</p>`;
+      const head = h.kolom.map((k) => `<th${/Int|Float|Decimal/.test(k.tipe) ? ' class="angka"' : ""}>${escape(k.nama)}</th>`).join("");
+      const body = h.baris
+        .map((r) => `<tr>${r.map((v, i) => {
+          const num = typeof v === "number";
+          const tampil = v == null ? "∅" : num ? new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(v) : String(v);
+          return `<td${num ? ' class="angka"' : ""}${h.kolom[i] ? "" : ""}>${escape(tampil)}</td>`;
+        }).join("")}</tr>`)
+        .join("");
+      const ket = `${h.total.toLocaleString("id-ID")} baris${h.total > h.baris.length ? `, ${h.baris.length.toLocaleString("id-ID")} ditampilkan` : ""} · ${h.ms.toFixed(0)} ms`;
+      return `<p class="catatan">${ket}</p><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    /** Grafik otomatis: kolom pertama waktu + kolom angka -> garis; label + 1 angka (≤ 40 baris) -> batang. */
+    async function grafik(h: Hasil) {
+      const angka = h.kolom.map((k, i) => ({ ...k, i })).filter((k) => /Int|Float|Decimal/.test(k.tipe));
+      const pertama = h.kolom[0];
+      const waktu = pertama && (/Date|Timestamp/.test(pertama.tipe) || /^(tanggal|bulan|minggu)$/.test(pertama.nama));
+      const label = pertama && /Utf8/.test(pertama.tipe) && angka.length >= 1 && h.baris.length <= 40;
+      if (!pertama || angka.length === 0 || (!waktu && !label)) {
+        grafikEl.hidden = true;
+        return;
+      }
+      grafikEl.hidden = false;
+      const { mount, baseOption, rpRingkas } = await import("../lib/charts");
+      const base = baseOption();
+      const seri = angka.filter((k) => k.i !== 0).slice(0, 4);
+      const x = h.baris.map((r) => String(r[0]));
+      const opsi = waktu
+        ? {
+            xAxis: { ...(base["xAxis"] as object), type: "category", data: x, boundaryGap: false },
+            yAxis: { ...(base["yAxis"] as object), type: "value", scale: true, axisLabel: { formatter: rpRingkas } },
+            series: seri.map((k) => ({ name: k.nama, type: "line", showSymbol: false, data: h.baris.map((r) => r[k.i]) })),
+          }
+        : {
+            grid: { ...(base["grid"] as object), left: 8 },
+            yAxis: { type: "category", data: x, inverse: true, axisLabel: { width: 140, overflow: "truncate" } },
+            xAxis: { ...(base["yAxis"] as object), type: "value", axisLabel: { formatter: rpRingkas } },
+            series: seri.slice(0, 1).map((k) => ({ name: k.nama, type: "bar", data: h.baris.map((r) => r[k.i]) })),
+          };
+      grafikEl.style.height = waktu ? "" : `${Math.max(240, x.length * 22 + 80)}px`;
+      mount(grafikEl).setOption({ ...base, ...opsi, tooltip: { ...(base["tooltip"] as object), trigger: waktu ? "axis" : "item" } }, { notMerge: true });
+    }
+
+    async function run() {
+      tombol.disabled = true;
+      try {
+        const con = await koneksi();
+        const { jalankan } = await duckP();
+        status.textContent = "Menjalankan…";
+        terakhir = await jalankan(con, sql.value);
+        hasilEl.innerHTML = tabel(terakhir);
+        unduh.disabled = terakhir.kolom.length === 0;
+        status.textContent = "Siap.";
+        await grafik(terakhir);
+      } catch (err) {
+        status.textContent = "Kueri gagal.";
+        hasilEl.innerHTML = `<p class="kosong" role="alert">${escape(err instanceof Error ? err.message : String(err))}</p>`;
+        grafikEl.hidden = true;
+      } finally {
+        tombol.disabled = false;
+      }
+    }
+
+    tombol.addEventListener("click", () => void run());
+    sql.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        void run();
+      }
+    });
+    root.querySelectorAll<HTMLButtonElement>("[data-contoh]").forEach((b) =>
+      b.addEventListener("click", () => {
+        sql.value = contoh[Number(b.dataset["contoh"])]?.sql ?? "";
+        void run();
+      }),
+    );
+    unduh.addEventListener("click", async () => {
+      if (!terakhir) return;
+      const { keCsv } = await duckP();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([keCsv(terakhir)], { type: "text/csv" }));
+      a.download = "hasil-kueri-pihps.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  </script>
+</Base>

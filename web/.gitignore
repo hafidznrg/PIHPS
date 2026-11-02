@@ -4,3 +4,4 @@ dist/
 public/data/
 test-results/
 playwright-report/
+public/duckdb/
