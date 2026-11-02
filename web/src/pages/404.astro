@@ -1,0 +1,12 @@
+---
+import Base from "../layouts/Base.astro";
+import { href } from "../lib/url";
+---
+
+<Base title="Halaman tidak ditemukan" description="Halaman yang dicari tidak ada.">
+  <section class="hero">
+    <h1>Halaman tidak ditemukan</h1>
+    <p class="hero__ket">Mungkin wilayah atau komoditas ini belum punya data.</p>
+    <p><a class="tombol" href={href()}>Lihat harga hari ini</a></p>
+  </section>
+</Base>

@@ -1,0 +1,43 @@
+---
+import Base from "../../layouts/Base.astro";
+import { getMeta, getWilayah, komoditasMap } from "../../lib/data";
+import { rupiah, satuan, tanggalPanjang } from "../../lib/format";
+import { href } from "../../lib/url";
+
+const meta = getMeta();
+const kmap = komoditasMap(meta);
+const nasional = getWilayah("nasional").pasar.find((p) => p.jenis_pasar_id === 1);
+const harga = new Map(nasional?.terkini.map((t) => [t.komoditas_id, t]) ?? []);
+---
+
+<Base title="Semua komoditas" description="Daftar 21 komoditas pangan strategis yang dipantau PIHPS Bank Indonesia beserta harga nasional terkini." aktif="komoditas">
+  <section class="hero">
+    <h1>Komoditas</h1>
+    <p class="hero__ket">
+      {meta.kategori.length} kelompok, {meta.komoditas.filter((k) => k.level === 2).length} komoditas. Harga rata-rata nasional pasar tradisional,
+      {tanggalPanjang(meta.tanggal_acuan)}.
+    </p>
+  </section>
+  {meta.kategori.map((kat) => (
+    <section class="kategori">
+      <h2 class="kategori__judul"><a href={href(`komoditas/${kat.id}/`)}>{kat.nama}</a></h2>
+      <div class="panel tabel-wadah">
+        <table>
+          <thead><tr><th>Komoditas</th><th class="angka">Harga</th></tr></thead>
+          <tbody>
+            {kat.komoditas.map((id) => {
+              const k = kmap.get(id);
+              const t = harga.get(id);
+              return k ? (
+                <tr>
+                  <td><a href={href(`komoditas/${id}/`)}>{k.nama}</a></td>
+                  <td class="angka">{t ? <>{rupiah(t.harga)}<span class="catatan">{satuan(k.satuan)}</span></> : "–"}</td>
+                </tr>
+              ) : null;
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  ))}
+</Base>
