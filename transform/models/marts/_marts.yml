@@ -97,7 +97,11 @@ models:
         data_tests: [not_null]
 
   - name: dim_tanggal
-    description: Kalender harian sejak awal data; ada_data_pihps = hari publikasi PIHPS.
+    description: >
+      Kalender harian sejak awal data. ada_data_pihps = hari publikasi PIHPS; is_hari_kerja =
+      Senin-Jumat di luar libur nasional & cuti bersama.
     columns:
       - name: tanggal
         data_tests: [unique, not_null]
+      - name: is_hari_kerja
+        data_tests: [not_null]

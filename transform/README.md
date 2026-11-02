@@ -34,7 +34,7 @@ uv run python -m pihps.transform build --raw-dir data -- --select stg_pihps__har
 | `dim_wilayah` | `marts/dim_wilayah.parquet` | SCD2 nasional/provinsi/kab-kota, `[valid_from, valid_to)` |
 | `dim_komoditas` | `marts/dim_komoditas.parquet` | 10 kategori + 21 komoditas, + HET berlaku (seed) |
 | `dim_pasar` | `marts/dim_pasar.parquet` | 4 jenis pasar |
-| `dim_tanggal` | `marts/dim_tanggal.parquet` | kalender sejak 2017-06-01, `ada_data_pihps` |
+| `dim_tanggal` | `marts/dim_tanggal.parquet` | kalender sejak 2017-06-01, `ada_data_pihps`, `is_hari_kerja` (libur & cuti bersama dari seed `hari_libur`) |
 
 Keputusan pemodelan:
 

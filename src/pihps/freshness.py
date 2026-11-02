@@ -5,9 +5,9 @@
 Membaca `marts/_build.json` (ditulis pihps.transform saat publish) dan memeriksa:
 
 1. **Data basi**: tanggal harga terbaru nasional pasar tradisional tertinggal lebih dari
-   `--max-business-days` (default 3) hari kerja dari hari ini (WIB). PIHPS hanya terbit di hari
-   kerja; libur nasional belum diperhitungkan, jadi libur panjang (mis. Lebaran) bisa memicu
-   peringatan palsu.
+   `--max-business-days` (default 3) hari kerja dari hari ini (WIB). Hari kerja = Senin-Jumat
+   di luar libur nasional & cuti bersama (seed transform/seeds/hari_libur.csv), jadi libur
+   panjang seperti Lebaran tidak memicu peringatan palsu.
 2. **Build basi**: build terakhir lebih tua dari `--max-build-age-hours` (default 30), artinya
    workflow transform (atau extract yang memicunya) tidak berjalan.
 
@@ -17,10 +17,13 @@ Kode keluar: 0 segar, 1 basi, 3 error (mis. _build.json tidak terbaca).
 from __future__ import annotations
 
 import argparse
+import csv
 import logging
 import sys
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from pihps.config import TZ_WIB
@@ -32,15 +35,25 @@ BUILD_INFO_KEY = "marts/_build.json"
 MAX_BUSINESS_DAYS = 3
 MAX_BUILD_AGE_HOURS = 30
 EXIT_OK, EXIT_STALE, EXIT_ERROR = 0, 1, 3
+HOLIDAYS_CSV = Path(__file__).resolve().parents[2] / "transform/seeds/hari_libur.csv"
 
 
-def business_days_between(start: date, end: date) -> int:
-    """Jumlah hari kerja (Senin-Jumat) di (start, end]. 0 bila end <= start."""
+def load_holidays(path: Path = HOLIDAYS_CSV) -> set[date]:
+    """Tanggal libur nasional + cuti bersama dari seed dbt (kosong bila file tidak ada)."""
+    if not path.exists():
+        log.warning("seed hari libur %s tidak ada; hanya akhir pekan yang dikecualikan", path)
+        return set()
+    with path.open() as fh:
+        return {date.fromisoformat(r["tanggal"]) for r in csv.DictReader(fh)}
+
+
+def business_days_between(start: date, end: date, holidays: Collection[date] = ()) -> int:
+    """Jumlah hari kerja (Senin-Jumat, bukan libur) di (start, end]. 0 bila end <= start."""
     days = 0
     cur = start
     while cur < end:
         cur += timedelta(days=1)
-        if cur.isoweekday() <= 5:
+        if cur.isoweekday() <= 5 and cur not in holidays:
             days += 1
     return days
 
@@ -60,6 +73,7 @@ def evaluate(
     *,
     max_business_days: int = MAX_BUSINESS_DAYS,
     max_build_age_hours: float = MAX_BUILD_AGE_HOURS,
+    holidays: Collection[date] = (),
 ) -> Freshness:
     res = Freshness(ok=True)
     today = now.astimezone(TZ_WIB).date()
@@ -67,7 +81,7 @@ def evaluate(
     latest = (build_info.get("profile") or {}).get("terbaru_nasional_tradisional")
     if latest:
         res.latest_date = date.fromisoformat(str(latest)[:10])
-        res.lag_business_days = business_days_between(res.latest_date, today)
+        res.lag_business_days = business_days_between(res.latest_date, today, holidays)
         if res.lag_business_days > max_business_days:
             res.problems.append(
                 f"data basi: harga nasional pasar tradisional terbaru {res.latest_date} "
@@ -130,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
             datetime.now(UTC),
             max_business_days=args.max_business_days,
             max_build_age_hours=args.max_build_age_hours,
+            holidays=load_holidays(),
         )
     except Exception as exc:  # noqa: BLE001 - tidak bisa memeriksa = juga harus terdengar
         log.exception("freshness check gagal")

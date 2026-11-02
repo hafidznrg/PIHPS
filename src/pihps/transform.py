@@ -407,6 +407,24 @@ def profile_outputs(db_path: Path) -> dict[str, Any]:
             order by greatest(harga / sebelumnya, sebelumnya / harga) desc limit 10
             """
         ),
+        "kalender_publikasi": rows(
+            """
+            -- Apakah PIHPS terbit di hari libur, dan hari kerja mana yang tanpa data?
+            select tahun,
+                   count(*) filter (where is_hari_kerja) as hari_kerja,
+                   count(*) filter (where is_hari_kerja and not ada_data_pihps)
+                       as hari_kerja_tanpa_data,
+                   count(*) filter (where is_hari_libur and not is_akhir_pekan
+                                    and ada_data_pihps) as libur_ada_data,
+                   count(*) filter (where is_akhir_pekan and ada_data_pihps)
+                       as akhir_pekan_ada_data
+            from dim_tanggal
+            where tanggal <= (select max(tanggal) from fct_harga_harian)
+              and tanggal >= (select min(tanggal) from fct_harga_harian
+                              where kode_wilayah = 'nasional' and jenis_pasar_id = 1)
+            group by all order by tahun
+            """
+        ),
         "dim_wilayah": rows(
             """
             select level_wilayah, count(*) as versi,

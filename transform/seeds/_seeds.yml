@@ -64,3 +64,22 @@ seeds:
           - accepted_values:
               arguments:
                 values: [otomatis, manual]
+
+  - name: hari_libur
+    description: >
+      Libur nasional dan cuti bersama Indonesia 2017-2027 (jenis = libur_nasional /
+      cuti_bersama), dibangkitkan oleh scripts/gen_hari_libur.py dari paket `holidays`.
+      Dipakai dim_tanggal (is_hari_kerja) dan pihps.freshness (hari kerja tanpa libur).
+    config:
+      column_types:
+        tanggal: date
+        nama: varchar
+        jenis: varchar
+    columns:
+      - name: tanggal
+        data_tests: [unique, not_null]
+      - name: jenis
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [libur_nasional, cuti_bersama]

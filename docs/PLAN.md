@@ -103,7 +103,7 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | --- | --- | --- |
 | Workflow gagal / crash | `if: failure()` | Telegram + link run |
 | Kegagalan senyap | Nasional pasar tradisional kosong, atau (gagal + kosong) / total request harga > 10% | Run berstatus gagal |
-| Data basi | Workflow `freshness` (17.47 WIB): harga nasional pasar tradisional terbaru > 3 hari kerja, atau `marts/_build.json` > 30 jam | Run gagal + Telegram |
+| Data basi | Workflow `freshness` (17.47 WIB): harga nasional pasar tradisional terbaru > 3 hari kerja (di luar libur nasional & cuti bersama), atau `marts/_build.json` > 30 jam | Run gagal + Telegram |
 | Cron tidak jalan | Ringkasan harian (selalu dikirim, sukses maupun gagal) tidak masuk | Ketiadaan pesan |
 | Kualitas data | dbt tests: unik, not null, relationships, harga raw terparse (error); rentang harga wajar, lonjakan, kelengkapan nasional (warn) | Error: workflow `transform` gagal, publish dibatalkan, Telegram. Warn: tetap publish, jumlah di ringkasan Telegram |
 
@@ -150,5 +150,6 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | 2 Nov 2026 | `dim_wilayah` SCD2 diturunkan ulang dari semua snapshot referensi di raw (bukan `dbt snapshot`); versi pertama berlaku sejak 2017-06-01 | Raw immutable = histori lengkap, tanpa state yang bisa hilang; fakta backfill tetap tergabung |
 | 2 Nov 2026 | Publish = unggah dulu, lalu hapus objek basi di `staging/` & `marts/`; hanya bila tidak ada tes `error` | Isi R2 selalu = build terakhir yang lolos; pembaca tidak pernah melihat prefix kosong |
 | 2 Nov 2026 | Workflow `transform` dipicu `workflow_run` setelah `extract`/`backfill` (kecuali dibatalkan), Telegram setiap run | Data berhasil sebagian tetap diolah; ringkasan jadi heartbeat kedua |
-| 2 Nov 2026 | Freshness membaca `marts/_build.json` (bukan raw); hari kerja = Senin–Jumat tanpa kalender libur | Sekaligus mendeteksi transform yang berhenti; libur nasional = keputusan terbuka (bisa alarm palsu saat Lebaran) |
+| 2 Nov 2026 | Freshness membaca `marts/_build.json` (bukan raw) | Sekaligus mendeteksi transform yang berhenti |
+| 2 Nov 2026 | Kalender libur = seed `hari_libur` (libur nasional + cuti bersama 2017–2027) dibangkitkan `scripts/gen_hari_libur.py` dari paket `holidays`, bukan dependency pipeline | Hari kerja yang benar untuk freshness (tanpa alarm palsu Lebaran) dan `dim_tanggal.is_hari_kerja` untuk analisis F5; diperbarui saat SKB tahun baru terbit |
 | 2 Nov 2026 | Kab/kota PIHPS → kode BPS 4 digit lewat seed `wilayah_kabkota_bps` dari MFD BPS Jan 2018 (34 provinsi): 148 otomatis, 23 manual; kab/kota baru tanpa pemetaan = warn | Cakupan provinsi PIHPS masih pra-pemekaran; "Kota X" PIHPS kadang kota pasar = ibu kota kabupaten (Sampit, Tembilahan, Watampone, …) |

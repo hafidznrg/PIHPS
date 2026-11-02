@@ -98,6 +98,16 @@ def test_dbt_build_succeeds_and_writes_parquet(built):
     assert (out / "marts/fct_harga_harian/tahun=2026").is_dir()
     for dim in ("dim_wilayah", "dim_komoditas", "dim_pasar", "dim_tanggal"):
         assert (out / f"marts/{dim}.parquet").is_file()
+    # Idul Fitri 2026 (Sabtu 21 Mar) libur; cuti bersama Senin 23 Mar bukan hari kerja
+    assert query(
+        root,
+        f"""select tanggal, is_hari_libur, jenis_libur, is_hari_kerja
+            from '{out}/marts/dim_tanggal.parquet'
+            where tanggal in ('2026-03-23', '2026-03-25') order by 1""",
+    ) == [
+        (date(2026, 3, 23), True, "cuti_bersama", False),
+        (date(2026, 3, 25), False, None, True),
+    ]
 
 
 def test_staging_dedup_latest_wins(built):
@@ -180,6 +190,15 @@ def test_profile_and_report(built):
     profile = profile_outputs(root / "pihps.duckdb")
     assert profile["staging"]["tanggal_akhir"] == date(2026, 10, 30)
     assert profile["revisi"]["sel_direvisi"] > 0
+    assert profile["kalender_publikasi"] == [
+        {
+            "tahun": 2026,
+            "hari_kerja": 5,
+            "hari_kerja_tanpa_data": 0,
+            "libur_ada_data": 0,
+            "akhir_pekan_ada_data": 0,
+        }
+    ]
     report = format_report(None, res, profile, None)
     assert report.startswith("✅ PIHPS transform (sukses)")
     assert "fakta" in report
