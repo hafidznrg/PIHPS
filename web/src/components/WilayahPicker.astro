@@ -1,0 +1,47 @@
+---
+// Pemilih wilayah: <select> native (ramah HP & pembaca layar), dikelompokkan per provinsi.
+// Tanpa JS tetap ada tautan ke daftar wilayah.
+import type { WilayahMeta } from "../lib/types";
+import { href, wilayahHref } from "../lib/url";
+
+interface Props {
+  wilayah: WilayahMeta[];
+  aktif: string;
+}
+const { wilayah, aktif } = Astro.props;
+const provinsi = wilayah.filter((w) => w.level === "provinsi").sort((a, b) => a.nama.localeCompare(b.nama, "id"));
+const kabByProv = new Map<string, WilayahMeta[]>();
+for (const w of wilayah.filter((w) => w.level === "kabkota")) {
+  const key = w.nama_provinsi ?? "Lainnya";
+  kabByProv.set(key, [...(kabByProv.get(key) ?? []), w]);
+}
+const kabGroups = [...kabByProv.entries()]
+  .sort(([a], [b]) => a.localeCompare(b, "id"))
+  .map(([prov, list]) => [prov, list.sort((a, b) => a.nama.localeCompare(b.nama, "id"))] as const);
+const label = (w: WilayahMeta) => (w.is_aktif ? w.nama : `${w.nama} (data lama)`);
+---
+
+<div class="isian pilih-wilayah">
+  <label for="pilih-wilayah">Pilih wilayah</label>
+  <select id="pilih-wilayah" name="kode">
+    <option value="nasional" data-href={wilayahHref("nasional")} selected={aktif === "nasional"}>Nasional (rata-rata Indonesia)</option>
+    <optgroup label="Provinsi">
+      {provinsi.map((w) => <option value={w.kode} data-href={wilayahHref(w.kode)} selected={aktif === w.kode}>{label(w)}</option>)}
+    </optgroup>
+    {kabGroups.map(([prov, list]) => (
+      <optgroup label={`Kab/kota · ${prov}`}>
+        {list.map((w) => <option value={w.kode} data-href={wilayahHref(w.kode)} selected={aktif === w.kode}>{label(w)}</option>)}
+      </optgroup>
+    ))}
+  </select>
+  <noscript><a href={href("wilayah/")}>Lihat daftar semua wilayah</a></noscript>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLSelectElement>(".pilih-wilayah select").forEach((sel) => {
+    sel.addEventListener("change", () => {
+      const target = sel.selectedOptions[0]?.dataset["href"];
+      if (target) window.location.assign(target);
+    });
+  });
+</script>

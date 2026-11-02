@@ -1,0 +1,189 @@
+---
+import Base from "../../layouts/Base.astro";
+import { getMeta, getTren, komoditasMap } from "../../lib/data";
+import { persen, rupiah, satuan, tanggalPanjang, tanggalPendek } from "../../lib/format";
+import { badgeArah } from "../../lib/render";
+import { dataUrl, href, wilayahHref } from "../../lib/url";
+import type { JenisPasarId } from "../../lib/types";
+
+export function getStaticPaths() {
+  return getMeta().komoditas.map((k) => ({ params: { id: k.id } }));
+}
+const { id } = Astro.params;
+const meta = getMeta();
+const kmap = komoditasMap(meta);
+const k = kmap.get(id)!;
+const kategori = kmap.get(k.kategori_id);
+const tren = getTren(id);
+const pasarNama = new Map(meta.jenis_pasar.map((p) => [p.id, p.nama]));
+const nasional = new Map(tren.nasional_terkini.map((t) => [t.jenis_pasar_id, t]));
+const utama = nasional.get(1) ?? tren.nasional_terkini[0];
+
+// Rantai pasok: urutan alur barang, hanya yang datanya masih aktif.
+const alur: { id: JenisPasarId; ket: string }[] = [
+  { id: 4, ket: "dijual petani/peternak" },
+  { id: 3, ket: "grosir di pasar induk" },
+  { id: 1, ket: "eceran di pasar" },
+  { id: 2, ket: "eceran di supermarket" },
+];
+const rantai = alur
+  .map((a) => ({ ...a, t: nasional.get(a.id) }))
+  .filter((a) => a.t?.is_aktif)
+  .map((a) => ({ ...a, harga: a.t!.harga }));
+const maxRantai = Math.max(...rantai.map((r) => r.harga), 1);
+const produsen = rantai.find((r) => r.id === 4)?.harga;
+const eceran = rantai.find((r) => r.id === 1)?.harga;
+
+const provinsi = tren.provinsi_terkini;
+const maxProv = Math.max(...provinsi.map((p) => p.harga), 1);
+const termurah = provinsi[0];
+const termahal = provinsi[provinsi.length - 1];
+const judul = k.level === 1 ? `Harga ${k.nama} (rata-rata kategori)` : `Harga ${k.nama}`;
+const clientCtx = {
+  url: dataUrl(`serving/tren/${id}.json`),
+  pasar: Object.fromEntries(meta.jenis_pasar.map((p) => [p.id, p.nama])),
+  het: k.het?.harga ?? null,
+};
+---
+
+<Base
+  title={judul}
+  description={`${judul} hari ini${utama ? ` ${rupiah(utama.harga)}${satuan(k.satuan)}` : ""}: tren sejak 2017, perbandingan harga produsen sampai pasar, dan provinsi termurah-termahal. Data PIHPS Bank Indonesia.`}
+  aktif="komoditas"
+>
+  <section class="hero">
+    <p><a href={href("komoditas/")}>Komoditas</a> {kategori && k.level === 2 && <span class="lencana">{kategori.nama}</span>}</p>
+    <h1>{judul}</h1>
+    {utama ? (
+      <>
+        <p class="harga-besar">
+          {rupiah(utama.harga)}<span class="kartu__satuan">{satuan(k.satuan)}</span>
+        </p>
+        <Fragment set:html={badgeArah(utama).value} />
+        <p class="hero__ket">
+          Rata-rata nasional di {pasarNama.get(utama.jenis_pasar_id as JenisPasarId)?.toLowerCase()}, {tanggalPanjang(utama.tanggal)}.
+          {utama.perubahan_pct_1th != null && <> Setahun lalu {rupiah(utama.harga_1th)} ({persen(utama.perubahan_pct_1th)}).</>}
+        </p>
+        {k.het && (
+          <p class="hero__ket">
+            Harga Eceran Tertinggi (HET): <strong>{rupiah(k.het.harga)}</strong>{satuan(k.het.satuan)}
+            {utama.harga > k.het.harga ? " — harga pasar saat ini di atas HET." : " — harga pasar saat ini di bawah HET."}
+          </p>
+        )}
+      </>
+    ) : (
+      <p class="kosong">Belum ada data nasional untuk komoditas ini.</p>
+    )}
+  </section>
+
+  {rantai.length >= 2 && (
+    <section class="bagian panel" aria-labelledby="judul-rantai">
+      <h2 id="judul-rantai">Dari produsen sampai ke pembeli</h2>
+      <ul class="batang-daftar">
+        {rantai.map((r) => (
+          <li class="batang">
+            <span>
+              {pasarNama.get(r.id)}
+              <span class="catatan" style="display:block">{r.ket}</span>
+            </span>
+            <span class="batang__isi"><span style={`width:${((r.harga / maxRantai) * 100).toFixed(1)}%`} /></span>
+            <span class="batang__nilai">{rupiah(r.harga)}</span>
+          </li>
+        ))}
+      </ul>
+      {produsen && eceran && (
+        <p class="catatan">
+          Harga di pasar tradisional {persen(((eceran - produsen) / produsen) * 100, { tanda: false })}{" "}
+          {eceran >= produsen ? "lebih tinggi" : "lebih rendah"} dari harga di tingkat produsen. Selisih ini mencakup ongkos angkut,
+          penyimpanan, susut, dan keuntungan pedagang di setiap mata rantai.
+        </p>
+      )}
+    </section>
+  )}
+
+  <section class="bagian panel" aria-labelledby="judul-tren">
+    <div class="bagian__kepala">
+      <h2 id="judul-tren">Tren harga nasional</h2>
+      <p class="catatan">Rata-rata mingguan sejak {tanggalPendek(tren.mingguan.minggu[0] ?? meta.statistik.tanggal_awal)}</p>
+    </div>
+    <div id="grafik-tren" class="grafik grafik--tinggi grafik-memuat" role="img" aria-label={`Grafik tren mingguan ${k.nama} per jenis pasar`} data-ctx={JSON.stringify(clientCtx)}>
+      Memuat grafik…
+    </div>
+    <p class="catatan">Geser atau cubit grafik untuk memperbesar rentang waktu. Ketuk nama jenis pasar untuk menyembunyikan garisnya.</p>
+  </section>
+
+  {provinsi.length > 0 && termurah && termahal && (
+    <section class="bagian panel" aria-labelledby="judul-prov">
+      <div class="bagian__kepala">
+        <h2 id="judul-prov">Harga di setiap provinsi</h2>
+        <a href={`${href("peta/")}?k=${id}`}>Lihat di peta</a>
+      </div>
+      <p>
+        Termurah di <a href={wilayahHref(termurah.kode_wilayah)}>{termurah.nama}</a> ({rupiah(termurah.harga)}), termahal di{" "}
+        <a href={wilayahHref(termahal.kode_wilayah)}>{termahal.nama}</a> ({rupiah(termahal.harga)}) — selisih{" "}
+        {persen(((termahal.harga - termurah.harga) / termurah.harga) * 100, { tanda: false })}. Pasar tradisional.
+      </p>
+      <ul class="batang-daftar">
+        {provinsi.map((p) => (
+          <li class="batang">
+            <a href={wilayahHref(p.kode_wilayah)}>{p.nama}</a>
+            <span class="batang__isi"><span style={`width:${((p.harga / maxProv) * 100).toFixed(1)}%`} /></span>
+            <span class="batang__nilai">{rupiah(p.harga)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <script>
+    import { tanggalPendek } from "../../lib/format";
+    import type { TrenDoc } from "../../lib/types";
+
+    const el = document.getElementById("grafik-tren");
+    if (el?.dataset["ctx"]) {
+      const c = JSON.parse(el.dataset["ctx"]) as { url: string; pasar: Record<string, string>; het: number | null };
+      const draw = async () => {
+        const [{ mount, baseOption, rp, rpRingkas, warnaPasar, zoom }, doc] = await Promise.all([
+          import("../../lib/charts"),
+          fetch(c.url).then((r) => r.json() as Promise<TrenDoc>),
+        ]);
+        el.classList.remove("grafik-memuat");
+        el.textContent = "";
+        const x = doc.mingguan.minggu;
+        const order = ["4", "3", "1", "2"].filter((k) => doc.mingguan.harga[k]);
+        const base = baseOption();
+        const series = order.map((k) => ({
+          name: c.pasar[k] ?? k,
+          type: "line" as const,
+          color: warnaPasar(k),
+          showSymbol: false,
+          connectNulls: false,
+          data: x.map((d, i) => [d, doc.mingguan.harga[k]?.[i] ?? null]),
+          ...(k === "1" && c.het
+            ? { markLine: { symbol: "none", label: { formatter: "HET" }, data: [{ yAxis: c.het }] } }
+            : {}),
+        }));
+        const start = Math.max(0, 100 - (156 / Math.max(x.length, 1)) * 100); // ±3 tahun terakhir
+        mount(el).setOption({
+          ...base,
+          tooltip: { ...(base["tooltip"] as object), valueFormatter: rp },
+          xAxis: {
+            ...(base["xAxis"] as object),
+            type: "category",
+            boundaryGap: false,
+            axisLabel: { ...((base["xAxis"] as { axisLabel: object }).axisLabel), formatter: (v: string) => tanggalPendek(v) },
+          },
+          yAxis: { ...(base["yAxis"] as object), type: "value", scale: true, axisLabel: { formatter: rpRingkas } },
+          dataZoom: zoom(start),
+          series,
+        });
+      };
+      new IntersectionObserver((entries, obs) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          obs.disconnect();
+          draw().catch(() => (el.textContent = "Gagal memuat grafik."));
+        }
+      }, { rootMargin: "200px" }).observe(el);
+    }
+  </script>
+</Base>

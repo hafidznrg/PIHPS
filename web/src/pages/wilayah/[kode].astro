@@ -1,0 +1,22 @@
+---
+import Base from "../../layouts/Base.astro";
+import HargaWilayah from "../../components/HargaWilayah.astro";
+import { getMeta } from "../../lib/data";
+
+export function getStaticPaths() {
+  return getMeta()
+    .wilayah.filter((w) => w.kode !== "nasional")
+    .map((w) => ({ params: { kode: w.kode }, props: { nama: w.nama, provinsi: w.nama_provinsi, level: w.level } }));
+}
+const { kode } = Astro.params;
+const { nama, provinsi, level } = Astro.props;
+const lokasi = level === "kabkota" && provinsi ? `${nama}, ${provinsi}` : nama;
+---
+
+<Base
+  title={`Harga pangan di ${lokasi}`}
+  description={`Harga beras, cabai, bawang, daging, telur, minyak goreng, dan gula hari ini di ${lokasi}, dibanding minggu lalu dan rata-rata nasional. Data PIHPS Bank Indonesia.`}
+  aktif="wilayah"
+>
+  <HargaWilayah kode={kode} />
+</Base>

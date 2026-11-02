@@ -1,0 +1,264 @@
+tanggal,nama,jenis
+2017-01-01,Tahun Baru Masehi,libur_nasional
+2017-01-02,Cuti Bersama Tahun Baru Masehi,cuti_bersama
+2017-01-28,Tahun Baru Imlek,libur_nasional
+2017-02-15,Hari Pemilihan Kepala Daerah,libur_nasional
+2017-03-28,Hari Suci Nyepi,libur_nasional
+2017-04-14,Wafat Yesus Kristus,libur_nasional
+2017-04-24,Isra Mikraj Nabi Muhammad,libur_nasional
+2017-05-01,Hari Buruh Internasional,libur_nasional
+2017-05-11,Hari Raya Waisak,libur_nasional
+2017-05-25,Kenaikan Yesus Kristus,libur_nasional
+2017-06-01,Hari Lahir Pancasila,libur_nasional
+2017-06-23,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2017-06-25,Hari Raya Idul Fitri,libur_nasional
+2017-06-26,Hari kedua dari Hari Raya Idul Fitri,libur_nasional
+2017-06-27,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2017-06-28,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2017-06-29,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2017-06-30,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2017-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2017-09-01,Hari Raya Idul Adha,libur_nasional
+2017-09-21,Tahun Baru Islam,libur_nasional
+2017-12-01,Maulid Nabi Muhammad,libur_nasional
+2017-12-25,Hari Raya Natal,libur_nasional
+2017-12-26,Cuti Bersama Hari Raya Natal,cuti_bersama
+2018-01-01,Tahun Baru Masehi,libur_nasional
+2018-02-16,Tahun Baru Imlek,libur_nasional
+2018-03-17,Hari Suci Nyepi,libur_nasional
+2018-03-30,Wafat Yesus Kristus,libur_nasional
+2018-04-14,Isra Mikraj Nabi Muhammad,libur_nasional
+2018-05-01,Hari Buruh Internasional,libur_nasional
+2018-05-10,Kenaikan Yesus Kristus,libur_nasional
+2018-05-29,Hari Raya Waisak,libur_nasional
+2018-06-01,Hari Lahir Pancasila,libur_nasional
+2018-06-11,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2018-06-12,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2018-06-13,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2018-06-14,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2018-06-15,Hari Raya Idul Fitri,libur_nasional
+2018-06-16,Hari kedua dari Hari Raya Idul Fitri,libur_nasional
+2018-06-18,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2018-06-19,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2018-06-20,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2018-06-27,Hari Pemilihan Kepala Daerah,libur_nasional
+2018-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2018-08-22,Hari Raya Idul Adha,libur_nasional
+2018-09-11,Tahun Baru Islam,libur_nasional
+2018-11-20,Maulid Nabi Muhammad,libur_nasional
+2018-12-24,Cuti Bersama Hari Raya Natal,cuti_bersama
+2018-12-25,Hari Raya Natal,libur_nasional
+2019-01-01,Tahun Baru Masehi,libur_nasional
+2019-02-05,Tahun Baru Imlek,libur_nasional
+2019-03-07,Hari Suci Nyepi,libur_nasional
+2019-04-03,Isra Mikraj Nabi Muhammad,libur_nasional
+2019-04-17,Hari Pemilihan Umum,libur_nasional
+2019-04-19,Wafat Yesus Kristus,libur_nasional
+2019-05-01,Hari Buruh Internasional,libur_nasional
+2019-05-19,Hari Raya Waisak,libur_nasional
+2019-05-30,Kenaikan Yesus Kristus,libur_nasional
+2019-06-01,Hari Lahir Pancasila,libur_nasional
+2019-06-03,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2019-06-04,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2019-06-05,Hari Raya Idul Fitri,libur_nasional
+2019-06-06,Hari kedua dari Hari Raya Idul Fitri,libur_nasional
+2019-06-07,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2019-08-11,Hari Raya Idul Adha,libur_nasional
+2019-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2019-09-01,Tahun Baru Islam,libur_nasional
+2019-11-09,Maulid Nabi Muhammad,libur_nasional
+2019-12-24,Cuti Bersama Hari Raya Natal,cuti_bersama
+2019-12-25,Hari Raya Natal,libur_nasional
+2020-01-01,Tahun Baru Masehi,libur_nasional
+2020-01-25,Tahun Baru Imlek,libur_nasional
+2020-03-22,Isra Mikraj Nabi Muhammad,libur_nasional
+2020-03-25,Hari Suci Nyepi,libur_nasional
+2020-04-10,Wafat Yesus Kristus,libur_nasional
+2020-05-01,Hari Buruh Internasional,libur_nasional
+2020-05-07,Hari Raya Waisak,libur_nasional
+2020-05-21,Kenaikan Yesus Kristus,libur_nasional
+2020-05-24,Hari Raya Idul Fitri,libur_nasional
+2020-05-25,Hari kedua dari Hari Raya Idul Fitri,libur_nasional
+2020-06-01,Hari Lahir Pancasila,libur_nasional
+2020-07-31,Hari Raya Idul Adha,libur_nasional
+2020-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2020-08-20,Tahun Baru Islam,libur_nasional
+2020-08-21,Cuti Bersama Tahun Baru Islam,cuti_bersama
+2020-10-28,Cuti Bersama Maulid Nabi Muhammad,cuti_bersama
+2020-10-29,Maulid Nabi Muhammad,libur_nasional
+2020-10-30,Cuti Bersama Maulid Nabi Muhammad,cuti_bersama
+2020-12-09,Hari Pemilihan Kepala Daerah,libur_nasional
+2020-12-24,Cuti Bersama Hari Raya Natal,cuti_bersama
+2020-12-25,Hari Raya Natal,libur_nasional
+2020-12-31,Pegangti Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2021-01-01,Tahun Baru Masehi,libur_nasional
+2021-02-12,Tahun Baru Imlek,libur_nasional
+2021-03-11,Isra Mikraj Nabi Muhammad,libur_nasional
+2021-03-14,Hari Suci Nyepi,libur_nasional
+2021-04-02,Wafat Yesus Kristus,libur_nasional
+2021-05-01,Hari Buruh Internasional,libur_nasional
+2021-05-12,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2021-05-13,Hari Raya Idul Fitri; Kenaikan Yesus Kristus,libur_nasional
+2021-05-14,Hari kedua dari Hari Raya Idul Fitri,libur_nasional
+2021-05-26,Hari Raya Waisak,libur_nasional
+2021-06-01,Hari Lahir Pancasila,libur_nasional
+2021-07-20,Hari Raya Idul Adha,libur_nasional
+2021-08-11,Tahun Baru Islam,libur_nasional
+2021-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2021-10-20,Maulid Nabi Muhammad,libur_nasional
+2021-12-25,Hari Raya Natal,libur_nasional
+2022-01-01,Tahun Baru Masehi,libur_nasional
+2022-02-01,Tahun Baru Imlek,libur_nasional
+2022-02-28,Isra Mikraj Nabi Muhammad,libur_nasional
+2022-03-03,Hari Suci Nyepi,libur_nasional
+2022-04-15,Wafat Yesus Kristus,libur_nasional
+2022-04-29,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2022-05-01,Hari Buruh Internasional,libur_nasional
+2022-05-02,Hari Raya Idul Fitri,libur_nasional
+2022-05-03,Hari kedua dari Hari Raya Idul Fitri,libur_nasional
+2022-05-04,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2022-05-05,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2022-05-06,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2022-05-16,Hari Raya Waisak,libur_nasional
+2022-05-26,Kenaikan Yesus Kristus,libur_nasional
+2022-06-01,Hari Lahir Pancasila,libur_nasional
+2022-07-10,Hari Raya Idul Adha,libur_nasional
+2022-07-30,Tahun Baru Islam,libur_nasional
+2022-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2022-10-08,Maulid Nabi Muhammad,libur_nasional
+2022-12-25,Hari Raya Natal,libur_nasional
+2023-01-01,Tahun Baru Masehi,libur_nasional
+2023-01-22,Tahun Baru Imlek,libur_nasional
+2023-01-23,Cuti Bersama Tahun Baru Imlek,cuti_bersama
+2023-02-18,Isra Mikraj Nabi Muhammad,libur_nasional
+2023-03-22,Hari Suci Nyepi,libur_nasional
+2023-03-23,Cuti Bersama Hari Suci Nyepi,cuti_bersama
+2023-04-07,Wafat Yesus Kristus,libur_nasional
+2023-04-19,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2023-04-20,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2023-04-21,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2023-04-22,Hari Raya Idul Fitri,libur_nasional
+2023-04-23,Hari kedua dari Hari Raya Idul Fitri,libur_nasional
+2023-04-24,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2023-04-25,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2023-05-01,Hari Buruh Internasional,libur_nasional
+2023-05-18,Kenaikan Yesus Kristus,libur_nasional
+2023-06-01,Hari Lahir Pancasila,libur_nasional
+2023-06-02,Cuti Bersama Hari Raya Waisak,cuti_bersama
+2023-06-04,Hari Raya Waisak,libur_nasional
+2023-06-28,Cuti Bersama Hari Raya Idul Adha,cuti_bersama
+2023-06-29,Hari Raya Idul Adha,libur_nasional
+2023-06-30,Cuti Bersama Hari Raya Idul Adha,cuti_bersama
+2023-07-19,Tahun Baru Islam,libur_nasional
+2023-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2023-09-28,Maulid Nabi Muhammad,libur_nasional
+2023-12-25,Hari Raya Natal,libur_nasional
+2023-12-26,Cuti Bersama Hari Raya Natal,cuti_bersama
+2024-01-01,Tahun Baru Masehi,libur_nasional
+2024-02-08,Isra Mikraj Nabi Muhammad,libur_nasional
+2024-02-09,Cuti Bersama Tahun Baru Imlek,cuti_bersama
+2024-02-10,Tahun Baru Imlek,libur_nasional
+2024-02-14,Hari Pemilihan Umum,libur_nasional
+2024-03-11,Hari Suci Nyepi,libur_nasional
+2024-03-12,Cuti Bersama Hari Suci Nyepi,cuti_bersama
+2024-03-29,Wafat Yesus Kristus,libur_nasional
+2024-03-31,Kebangkitan Yesus Kristus,libur_nasional
+2024-04-08,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2024-04-09,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2024-04-10,Hari Raya Idul Fitri,libur_nasional
+2024-04-11,Hari kedua dari Hari Raya Idul Fitri,libur_nasional
+2024-04-12,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2024-04-15,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2024-05-01,Hari Buruh Internasional,libur_nasional
+2024-05-09,Kenaikan Yesus Kristus,libur_nasional
+2024-05-10,Cuti Bersama Kenaikan Yesus Kristus,cuti_bersama
+2024-05-23,Hari Raya Waisak,libur_nasional
+2024-05-24,Cuti Bersama Hari Raya Waisak,cuti_bersama
+2024-06-01,Hari Lahir Pancasila,libur_nasional
+2024-06-17,Hari Raya Idul Adha,libur_nasional
+2024-06-18,Cuti Bersama Hari Raya Idul Adha,cuti_bersama
+2024-07-07,Tahun Baru Islam,libur_nasional
+2024-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2024-09-16,Maulid Nabi Muhammad,libur_nasional
+2024-11-27,Hari Pemilihan Kepala Daerah,libur_nasional
+2024-12-25,Hari Raya Natal,libur_nasional
+2024-12-26,Cuti Bersama Hari Raya Natal,cuti_bersama
+2025-01-01,Tahun Baru Masehi,libur_nasional
+2025-01-27,Isra Mikraj Nabi Muhammad,libur_nasional
+2025-01-28,Cuti Bersama Tahun Baru Imlek,cuti_bersama
+2025-01-29,Tahun Baru Imlek,libur_nasional
+2025-03-28,Cuti Bersama Hari Suci Nyepi,cuti_bersama
+2025-03-29,Hari Suci Nyepi,libur_nasional
+2025-03-31,Hari Raya Idul Fitri,libur_nasional
+2025-04-01,Hari kedua dari Hari Raya Idul Fitri,libur_nasional
+2025-04-02,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2025-04-03,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2025-04-04,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2025-04-07,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2025-04-18,Wafat Yesus Kristus,libur_nasional
+2025-04-20,Kebangkitan Yesus Kristus,libur_nasional
+2025-05-01,Hari Buruh Internasional,libur_nasional
+2025-05-12,Hari Raya Waisak,libur_nasional
+2025-05-13,Cuti Bersama Hari Raya Waisak,cuti_bersama
+2025-05-29,Kenaikan Yesus Kristus,libur_nasional
+2025-05-30,Cuti Bersama Kenaikan Yesus Kristus,cuti_bersama
+2025-06-01,Hari Lahir Pancasila,libur_nasional
+2025-06-06,Hari Raya Idul Adha,libur_nasional
+2025-06-09,Cuti Bersama Hari Raya Idul Adha,cuti_bersama
+2025-06-27,Tahun Baru Islam,libur_nasional
+2025-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2025-08-18,Cuti Bersama Hari Kemerdekaan Republik Indonesia,cuti_bersama
+2025-09-05,Maulid Nabi Muhammad,libur_nasional
+2025-12-25,Hari Raya Natal,libur_nasional
+2025-12-26,Cuti Bersama Hari Raya Natal,cuti_bersama
+2026-01-01,Tahun Baru Masehi,libur_nasional
+2026-01-16,Isra Mikraj Nabi Muhammad,libur_nasional
+2026-02-16,Cuti Bersama Tahun Baru Imlek,cuti_bersama
+2026-02-17,Tahun Baru Imlek,libur_nasional
+2026-03-18,Cuti Bersama Hari Suci Nyepi,cuti_bersama
+2026-03-19,Hari Suci Nyepi,libur_nasional
+2026-03-20,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2026-03-21,Hari Raya Idul Fitri,libur_nasional
+2026-03-22,Hari kedua dari Hari Raya Idul Fitri,libur_nasional
+2026-03-23,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2026-03-24,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2026-04-03,Wafat Yesus Kristus,libur_nasional
+2026-04-05,Kebangkitan Yesus Kristus,libur_nasional
+2026-05-01,Hari Buruh Internasional,libur_nasional
+2026-05-14,Kenaikan Yesus Kristus,libur_nasional
+2026-05-15,Cuti Bersama Kenaikan Yesus Kristus,cuti_bersama
+2026-05-27,Hari Raya Idul Adha,libur_nasional
+2026-05-28,Cuti Bersama Hari Raya Idul Adha,cuti_bersama
+2026-05-31,Hari Raya Waisak,libur_nasional
+2026-06-01,Hari Lahir Pancasila,libur_nasional
+2026-06-16,Tahun Baru Islam,libur_nasional
+2026-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2026-08-25,Maulid Nabi Muhammad,libur_nasional
+2026-12-24,Cuti Bersama Hari Raya Natal,cuti_bersama
+2026-12-25,Hari Raya Natal,libur_nasional
+2027-01-01,Tahun Baru Masehi,libur_nasional
+2027-01-05,Isra Mikraj Nabi Muhammad,libur_nasional
+2027-02-05,Cuti Bersama Tahun Baru Imlek,cuti_bersama
+2027-02-06,Tahun Baru Imlek,libur_nasional
+2027-03-08,Hari Suci Nyepi,libur_nasional
+2027-03-09,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2027-03-10,Hari Raya Idul Fitri (perkiraan),libur_nasional
+2027-03-11,Hari kedua dari Hari Raya Idul Fitri (perkiraan),libur_nasional
+2027-03-12,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2027-03-15,Cuti Bersama Hari Raya Idul Fitri,cuti_bersama
+2027-03-25,Cuti Bersama Wafat Yesus Kristus,cuti_bersama
+2027-03-26,Wafat Yesus Kristus,libur_nasional
+2027-03-28,Kebangkitan Yesus Kristus,libur_nasional
+2027-05-01,Hari Buruh Internasional,libur_nasional
+2027-05-06,Kenaikan Yesus Kristus,libur_nasional
+2027-05-17,Hari Raya Idul Adha (perkiraan),libur_nasional
+2027-05-18,Cuti Bersama Hari Raya Idul Adha,cuti_bersama
+2027-05-19,Cuti Bersama Hari Raya Waisak,cuti_bersama
+2027-05-20,Hari Raya Waisak,libur_nasional
+2027-06-01,Hari Lahir Pancasila,libur_nasional
+2027-06-06,Tahun Baru Islam,libur_nasional
+2027-08-15,Maulid Nabi Muhammad,libur_nasional
+2027-08-17,Hari Kemerdekaan Republik Indonesia,libur_nasional
+2027-12-24,Cuti Bersama Hari Raya Natal,cuti_bersama
+2027-12-25,Hari Raya Natal,libur_nasional
+2027-12-26,Isra Mikraj Nabi Muhammad,libur_nasional

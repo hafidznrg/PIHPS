@@ -1,0 +1,26 @@
+[
+  {
+    "judul": "Harga beras medium per provinsi",
+    "sql": "-- Harga terbaru Beras Kualitas Medium I per provinsi, pasar tradisional\nselect w.nama as provinsi, h.tanggal, h.harga\nfrom harga h\njoin wilayah w using (wilayah_sk)\njoin komoditas k using (komoditas_id)\nwhere k.nama_komoditas = 'Beras Kualitas Medium I'\n  and h.jenis_pasar_id = 1\n  and w.level_wilayah = 'provinsi'\n  and not h.is_outlier\nqualify row_number() over (partition by h.kode_wilayah order by h.tanggal desc) = 1\norder by h.harga desc"
+  },
+  {
+    "judul": "Cabai rawit merah per bulan",
+    "sql": "-- Rata-rata bulanan Cabai Rawit Merah, nasional, pasar tradisional\nselect cast(date_trunc('month', tanggal) as date) as bulan,\n       round(avg(harga)) as harga\nfrom harga\nwhere kode_wilayah = 'nasional'\n  and jenis_pasar_id = 1\n  and komoditas_id = 'com_16'\n  and not is_outlier\ngroup by 1\norder by 1"
+  },
+  {
+    "judul": "Paling naik dalam setahun",
+    "sql": "-- Perubahan harga nasional (pasar tradisional) dibanding setahun sebelumnya\nwith t as (\n  select komoditas_id, tanggal, harga\n  from harga\n  where kode_wilayah = 'nasional' and jenis_pasar_id = 1\n    and level_komoditas = 2 and not is_outlier\n),\nakhir as (select komoditas_id, max(tanggal) as tgl from t group by 1)\nselect k.nama_komoditas,\n       s.harga as sekarang,\n       l.harga as setahun_lalu,\n       round(100.0 * (s.harga - l.harga) / l.harga, 1) as perubahan_pct\nfrom akhir a\njoin t s on s.komoditas_id = a.komoditas_id and s.tanggal = a.tgl\nasof join t l on l.komoditas_id = a.komoditas_id and l.tanggal <= a.tgl - 365\njoin komoditas k on k.komoditas_id = a.komoditas_id\norder by perubahan_pct desc"
+  },
+  {
+    "judul": "Dari produsen ke pasar",
+    "sql": "-- Harga nasional terbaru per mata rantai dan selisih produsen -> pasar tradisional\nwith terbaru as (\n  select *\n  from harga\n  where kode_wilayah = 'nasional' and level_komoditas = 2 and not is_outlier\n  qualify row_number() over (partition by jenis_pasar_id, komoditas_id order by tanggal desc) = 1\n)\nselect k.nama_komoditas,\n       max(harga) filter (where jenis_pasar_id = 4) as produsen,\n       max(harga) filter (where jenis_pasar_id = 3) as pedagang_besar,\n       max(harga) filter (where jenis_pasar_id = 1) as pasar_tradisional,\n       round(100.0 * (pasar_tradisional - produsen) / produsen, 1) as selisih_pct\nfrom terbaru\njoin komoditas k using (komoditas_id)\ngroup by k.nama_komoditas, k.urutan\norder by selisih_pct desc nulls last"
+  },
+  {
+    "judul": "Dugaan salah input",
+    "sql": "-- Nilai yang ditandai is_outlier (menyimpang > 3x median 11 hari pasar sekitarnya)\nselect h.tanggal, w.nama as wilayah, p.nama_jenis_pasar as pasar,\n       k.nama_komoditas, h.harga, h.harga_median_sekitar\nfrom harga h\njoin wilayah w using (wilayah_sk)\njoin komoditas k using (komoditas_id)\njoin pasar p using (jenis_pasar_id)\nwhere h.is_outlier\norder by h.tanggal desc"
+  },
+  {
+    "judul": "Jumlah data per tahun",
+    "sql": "-- Banyaknya sel harga per tahun dan jenis pasar\nselect tahun, p.nama_jenis_pasar as pasar, count(*) as sel_harga\nfrom harga\njoin pasar p using (jenis_pasar_id)\ngroup by all\norder by tahun, pasar"
+  }
+]

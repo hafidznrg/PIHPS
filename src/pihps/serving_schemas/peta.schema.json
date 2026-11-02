@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "serving/peta/<jenis_pasar>.json",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "tanggal_acuan": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "jenis_pasar_id": {
+      "type": "integer",
+      "enum": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "komoditas": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(cat|com)_\\d+$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "kode_wilayah": {
+              "type": "string",
+              "pattern": "^(nasional|prov-\\d+|kab-\\d+)$"
+            },
+            "kode_bps": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^\\d{2}(\\d{2})?$"
+            },
+            "nama": {
+              "type": "string"
+            },
+            "tanggal": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "harga": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "perubahan_pct_7h": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "selisih_pct_nasional": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "is_aktif": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kode_wilayah",
+            "kode_bps",
+            "nama",
+            "tanggal",
+            "harga",
+            "perubahan_pct_7h",
+            "selisih_pct_nasional",
+            "is_aktif"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "tanggal_acuan",
+    "jenis_pasar_id",
+    "komoditas"
+  ],
+  "additionalProperties": false
+}

@@ -1,6 +1,6 @@
 # Rencana Project PIHPS Harga Pangan
 
-_Dokumen hidup. Terakhir diperbarui: 2 Nov 2026 (keputusan backfill). Perbarui bagian **Status** dan **Log keputusan**
+_Dokumen hidup. Terakhir diperbarui: 2 Nov 2026 (F2–F4). Perbarui bagian **Status** dan **Log keputusan**
 setiap kali fase selesai atau keputusan berubah._
 
 ## Ringkasan
@@ -22,9 +22,9 @@ mudah dipahami masyarakat awam.
 | --- | --- | --- |
 | F0 Fondasi | Repo, endpoint terdokumentasi, probe lolos 18/19 dari runner GitHub, R2 & Telegram siap | Selesai 1 Nov |
 | F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian aktif mulai 2 Nov |
-| F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Belum |
-| F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Sedang dikerjakan: workflow backfill siap (uji e2e 2 Nov lolos: 4/4 job, 222 request, 1,54 detik/request), backfill penuh nasional + provinsi berjalan sejak 2 Nov 08.15 WIB ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499), ±7 jam); freshness check belum |
-| F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Belum |
+| F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Selesai 2 Nov (PR #3). Data penuh: 8,74 juta baris staging 2017-06-01 → 2026-10-30, 203 wilayah; dbt 130 detik; 196 sel outlier ditandai; Parquet + 239 file serving di R2; Telegram terkirim |
+| F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Selesai 2 Nov untuk nasional + provinsi: backfill 40/40 job, 15.940 request, 0 gagal, 403.985 record, 8,2 jam ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499)); workflow `freshness` harian (PR #3). Kab/kota historis menyusul |
+| F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Siap di PR #3: build data penuh 240 halaman, kontrak & 14 e2e lolos; terbit ke GitHub Pages setelah merge. HET menunggu sumber nilai |
 | F5 Analisis & publikasi | Volatilitas, disparitas, musiman, margin rantai pasok; README akhir | Belum |
 
 F1–F3 diprioritaskan selama kredit sesi cloud Claude Code masih ada (habis 5 Nov 2026, 14.59 WIB).
@@ -66,8 +66,8 @@ Endpoint JSON internal PIHPS (tidak resmi), detail di `docs/api-notes.md`.
 | Waktu | Harian (hari kerja), sejak 2017-06-01 | 1 bulan ≈ 1,5 detik; 1 tahun timeout |
 | Format | Lebar: kolom per tanggal, harga string `"16,450"` | Diparse ke format panjang |
 
-Catatan: kode wilayah PIHPS ≠ kode BPS (perlu tabel pemetaan; ID kab/kota PIHPS tidak berurutan,
-mis. Kota Surakarta = 787); daftar provinsi masih 34; kategori Beras Pasar Modern sama dengan
+Catatan: kode wilayah PIHPS ≠ kode BPS (dipetakan lewat seed `wilayah_provinsi_bps` dan
+`wilayah_kabkota_bps`; ID kab/kota PIHPS tidak berurutan, dan Kota Surakarta punya dua id: 36 dan 787); daftar provinsi masih 34; kategori Beras Pasar Modern sama dengan
 Tradisional pada sampel probe (perlu dicek).
 
 Temuan run nyata F1 (29–30 Okt 2026, semua jenis pasar & level):
@@ -82,19 +82,38 @@ Temuan run nyata F1 (29–30 Okt 2026, semua jenis pasar & level):
   Kota Probolinggo, Kota Maumere) dan di Pedagang Besar (Kab. Aceh Besar, Kota Metro).
 - Total respons kosong 18 dari 546 request harga (3,3%; produsen saja 13/178 = 7,3%).
 
+Temuan backfill (2 Nov): respons kosong per jenis pasar tradisional 20, modern 531, pedagang besar
+31, produsen 633 dari 3.985 request masing-masing. Tiga job melewati ambang kosong 50% (job tetap
+hijau, data tersimpan): pasar modern 2018 (51%), produsen 2018 (60%), produsen 2017 (97%) — data
+produsen praktis baru ada sejak 2019, pasar modern jarang sebelum 2019.
+
+Temuan F2 (staging penuh pasar tradisional 2017–2026, 3,15 juta baris):
+
+- PIHPS terbit setiap Senin–Jumat, **termasuk libur nasional & cuti bersama** (mis. 24 hari libur
+  di 2025 tetap ada data), tidak pernah di akhir pekan. Apakah nilai hari libur hasil
+  *carry-forward* perlu dicek di F5. Freshness tetap mengecualikan libur (lebih toleran).
+- Sel kosong nasional pasar tradisional: 2017 3,3%, 2018–2022 0,4–2,4%, 0 sejak 2023.
+- Salah input di sumber (tertangkap tes warn): Bengkulu Juni 2017 beras Rp100 & ayam Rp1.100;
+  salah digit (×10) mis. beras pasar modern Sumsel 139.000 → 13.900 (Feb 2025), daging sapi
+  pasar modern Kalteng 14.800 ↔ 147.900 (Jul 2025), minyak curah Papua Barat 11.500 ↔ 65.500
+  (Nov 2019). Dibiarkan di staging (raw apa adanya); penanganan outlier untuk web di F4/F5.
+- Pasar modern identik dengan tradisional hanya 0,84% sel (3.934/470.795).
+- PIHPS punya dua id untuk Kota Surakarta (36 "Kota Surakarta (Solo)" dan 787).
+
 ## Desain penyimpanan
 
 | Layer | Lokasi | Format | Isi |
 | --- | --- | --- | --- |
 | Raw | `raw/pihps/endpoint=…/jenis_pasar=…/ingest_date=…/run_id=…/` | JSON.gz | Respons API apa adanya + snapshot referensi |
 | Manifest | `raw/pihps/_manifests/ingest_date=…/run_id=…/_manifest.json` | JSON | URL, params, status HTTP, waktu, sha256, ringkasan run |
-| Staging | `staging/stg_pihps__harga/tahun=…/bulan=…/` | Parquet | Format panjang, tipe benar, kode BPS, dedup *latest wins* |
-| Marts | `marts/` | Parquet | `fct_harga_harian`, `dim_wilayah` (SCD2), `dim_komoditas` (+HET), `dim_pasar`, `dim_tanggal` |
-| Serving | `serving/` | JSON/Parquet kecil | Agregat siap tampil untuk web |
+| Staging | `staging/stg_pihps__harga/tahun=…/bulan=…/` | Parquet | Format panjang, tipe benar, kode BPS provinsi, dedup *latest wins* |
+| Marts | `marts/` | Parquet | `fct_harga_harian/tahun=…/`, `dim_wilayah` (SCD2), `dim_komoditas` (+HET), `dim_pasar`, `dim_tanggal`, `_build.json` |
+| Serving | `serving/` | JSON kecil berkontrak (JSON Schema + batas ukuran) | `meta.json`, `wilayah/<kode>.json`, `peta/<jenis_pasar>.json`, `tren/<komoditas>.json`; dibangun model dbt `srv_*`, ditulis `pihps.serving` |
 
 Kunci unik staging: `tanggal × jenis_pasar × kode_wilayah × komoditas_id`. Run harian mengambil
 ulang 7 hari terakhir; dedup memilih `_ingested_at` terbaru sehingga revisi BI ikut tertangkap.
-Detail layout raw: `docs/raw-layout.md`.
+`kode_wilayah` = kunci natural PIHPS (`nasional`, `prov-<id>`, `kab-<id>`); kode BPS jadi atribut.
+Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.md`.
 
 ## Monitoring & alerting
 
@@ -102,9 +121,24 @@ Detail layout raw: `docs/raw-layout.md`.
 | --- | --- | --- |
 | Workflow gagal / crash | `if: failure()` | Telegram + link run |
 | Kegagalan senyap | Nasional pasar tradisional kosong, atau (gagal + kosong) / total request harga > 10% | Run berstatus gagal |
-| Data basi | Job freshness: tanggal data terbaru > 3 hari kerja | Peringatan Telegram |
+| Data basi | Workflow `freshness` (17.47 WIB): harga nasional pasar tradisional terbaru > 3 hari kerja (di luar libur nasional & cuti bersama), atau `marts/_build.json` > 30 jam | Run gagal + Telegram |
 | Cron tidak jalan | Ringkasan harian (selalu dikirim, sukses maupun gagal) tidak masuk | Ketiadaan pesan |
-| Kualitas data | dbt tests: not null, unique, rentang harga wajar | Gagal di step transformasi |
+| Kualitas data | dbt tests: unik, not null, relationships, harga raw terparse (error); rentang harga wajar, lonjakan, kelengkapan nasional (warn) | Error: workflow `transform` gagal, publish dibatalkan, Telegram. Warn: tetap publish, jumlah di ringkasan Telegram |
+
+## Web (F4)
+
+- **Stack**: Astro (situs statis) + ECharts. Data halaman = JSON serving yang dibuat dbt saat
+  transform, disalin ke situs saat build; tidak ada server atau API.
+- **Serving layer = kontrak data**: model `srv_*` (logika & tes di dbt) → `pihps.serving` menulis
+  JSON dengan nama file tetap, divalidasi JSON Schema dan batas ukuran per file. Web hanya
+  bergantung pada kontrak ini, bukan pada tabel marts.
+- **Outlier**: `fct_harga_harian.is_outlier` menandai salah input (median bergulir per seri);
+  marts tetap setia ke sumber, serving memakai sel bersih.
+- **Halaman**: Beranda (harga hari ini nasional, naik/turun), Wilayah (provinsi & kab/kota),
+  Peta provinsi, Komoditas (tren sejak 2017 + rantai pasok produsen → pedagang besar → eceran),
+  Jelajahi (DuckDB-WASM membaca Parquet marts dari origin yang sama), Tentang data.
+- **Hosting**: GitHub Pages lewat Actions (repo publik, tanpa secret tambahan). Workflow `web`
+  berjalan setelah `transform`.
 
 ## Risiko & mitigasi
 
@@ -121,8 +155,8 @@ Detail layout raw: `docs/raw-layout.md`.
 
 - [ ] Backfill kab/kota (45.878 request, ±19–32 jam): kapan dijalankan, dan perlukah daftar kab/kota historis (`GetRefRegency` hanya kondisi sekarang)?
 - [ ] Warehouse tambahan untuk query ad-hoc: MotherDuck, BigQuery, atau cukup DuckDB + Parquet di R2?
-- [ ] Stack web: Next.js/Astro + ECharts, Evidence.dev, atau DuckDB-WASM di browser?
-- [ ] Sumber nilai HET (beras, Minyakita, gula) dan tanggal berlakunya
+- [ ] Cron `extract` (15.00 WIB) belum pernah terpicu sejak di-merge 1 Nov: run 2 Nov tidak ada. Pantau 3 Nov; bila tetap tidak jalan, cek status jadwal di tab Actions atau picu ulang dengan commit kecil ke `main`
+- [ ] Sumber nilai HET (beras, Minyakita, gula) dan tanggal berlakunya (seed `transform/seeds/het_komoditas.csv` siap, masih kosong)
 
 ## Log keputusan
 
@@ -142,3 +176,17 @@ Detail layout raw: `docs/raw-layout.md`.
 | 2 Nov 2026 | Ambang kosong jadi argumen `--max-empty-ratio`: 10% harian, **50% backfill**; ambang terlampaui di backfill = job hijau + warning (data tetap tersimpan) | Tahun awal memang jarang datanya; > 50% kosong tetap terdeteksi sebagai indikasi diblokir |
 | 2 Nov 2026 | Circuit breaker: run berhenti setelah 10 kegagalan beruntun (exit 3); di backfill, exit 3 membatalkan job sisanya (fail-fast) | Saat diblokir/server mati, tidak terus mengirim ratusan request × retry |
 | 2 Nov 2026 | Backfill dibiarkan tumpang-tindih dengan cron harian 08:00 UTC (maks. 2 client ±20 menit) | `concurrency` GitHub hanya menyimpan 1 run tertunda per grup, sehingga berbagi grup bisa membatalkan job matriks |
+| 2 Nov 2026 | Transformasi = sync raw R2 → disk runner **lewat manifest** (inkremental, di-cache Actions), lalu `dbt build` penuh di DuckDB, lalu publish Parquet ke R2 | Tes dbt deterministik di CI tanpa R2; tidak bergantung httpfs/S3 untuk ribuan file kecil; run harian hanya mengunduh file baru |
+| 2 Nov 2026 | Staging membaca raw dengan glob + *inner join* ke manifest (`ok = true`); respons harga tanpa record tidak diunduh | Manifest sumber kebenaran; file yatim dari run crash tersaring |
+| 2 Nov 2026 | Dedup *latest wins* berdasarkan `fetched_at` manifest, termasuk nilai kosong terbaru | Staging = versi terakhir BI; revisi tertangkap; `stg_pihps__harga_raw` menyimpan semua versi untuk audit |
+| 2 Nov 2026 | `kode_wilayah` = kunci natural PIHPS (`prov-13`, `kab-787`); kode BPS provinsi dari seed sebagai atribut | ID PIHPS ≠ BPS dan kab/kota belum terpetakan; kunci harus selalu ada |
+| 2 Nov 2026 | `dim_wilayah` SCD2 diturunkan ulang dari semua snapshot referensi di raw (bukan `dbt snapshot`); versi pertama berlaku sejak 2017-06-01 | Raw immutable = histori lengkap, tanpa state yang bisa hilang; fakta backfill tetap tergabung |
+| 2 Nov 2026 | Publish = unggah dulu, lalu hapus objek basi di `staging/` & `marts/`; hanya bila tidak ada tes `error` | Isi R2 selalu = build terakhir yang lolos; pembaca tidak pernah melihat prefix kosong |
+| 2 Nov 2026 | Workflow `transform` dipicu `workflow_run` setelah `extract`/`backfill` (kecuali dibatalkan), Telegram setiap run | Data berhasil sebagian tetap diolah; ringkasan jadi heartbeat kedua |
+| 2 Nov 2026 | Freshness membaca `marts/_build.json` (bukan raw) | Sekaligus mendeteksi transform yang berhenti |
+| 2 Nov 2026 | Kalender libur = seed `hari_libur` (libur nasional + cuti bersama 2017–2027) dibangkitkan `scripts/gen_hari_libur.py` dari paket `holidays`, bukan dependency pipeline | Hari kerja yang benar untuk freshness (tanpa alarm palsu Lebaran) dan `dim_tanggal.is_hari_kerja` untuk analisis F5; diperbarui saat SKB tahun baru terbit |
+| 2 Nov 2026 | Kab/kota PIHPS → kode BPS 4 digit lewat seed `wilayah_kabkota_bps` dari MFD BPS Jan 2018 (34 provinsi): 148 otomatis, 23 manual; kab/kota baru tanpa pemetaan = warn | Cakupan provinsi PIHPS masih pra-pemekaran; "Kota X" PIHPS kadang kota pasar = ibu kota kabupaten (Sampit, Tembilahan, Watampone, …) |
+| 2 Nov 2026 | Web F4 = Astro + ECharts + serving layer dbt, + satu halaman Jelajahi berbasis DuckDB-WASM | Diputuskan pemilik project: cepat di HP untuk publik; nilai portofolio ada di serving layer sebagai kontrak data; DuckDB-WASM menunjukkan lakehouse bisa di-query tanpa server |
+| 2 Nov 2026 | Serving ditulis Python dari model dbt (bukan COPY JSON DuckDB); format kolumnar ringkas (array tanggal bersama + array harga) | Nama file per wilayah/komoditas tetap dan struktur bersarang; ukuran kecil untuk HP |
+| 2 Nov 2026 | Hosting GitHub Pages; Parquet marts ikut disajikan dari origin situs untuk halaman Jelajahi | Tanpa bucket R2 publik/CORS dan tanpa secret baru; pembacaan Parquet via HTTP range |
+| 2 Nov 2026 | Outlier juga = harga > Rp1 juta/kg | Salah input berkepanjangan (Bengkulu produsen daging sapi Rp12 juta/kg sebulan) mencemari median jendela sehingga aturan relatif saja tidak cukup |

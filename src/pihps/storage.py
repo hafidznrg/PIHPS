@@ -21,7 +21,10 @@ class R2Storage:
             aws_access_key_id=cfg.access_key_id,
             aws_secret_access_key=cfg.secret_access_key,
             region_name="auto",
-            config=Config(retries={"max_attempts": 5, "mode": "standard"}),
+            config=Config(
+                retries={"max_attempts": 5, "mode": "standard"},
+                max_pool_connections=32,  # unduh/unggah paralel di pihps.transform
+            ),
         )
 
     def put_json(self, key: str, obj: Any, *, gzip_body: bool = False) -> int:
@@ -60,3 +63,23 @@ class R2Storage:
         if obj.get("ContentEncoding") == "gzip" or key.endswith(".gz"):
             body = gzip.decompress(body)
         return json.loads(body)
+
+    # ------------------------------------------------- dipakai pihps.transform
+    def list_objects(self, prefix: str) -> list[dict[str, Any]]:
+        """Semua objek di bawah prefix: [{'Key', 'Size', ...}]."""
+        out: list[dict[str, Any]] = []
+        paginator = self._s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+            out.extend(page.get("Contents", []))
+        return out
+
+    def download_file(self, key: str, path: str) -> None:
+        self._s3.download_file(self.bucket, key, path)
+
+    def upload_file(self, key: str, path: str, *, content_type: str) -> None:
+        self._s3.upload_file(path, self.bucket, key, ExtraArgs={"ContentType": content_type})
+
+    def delete_keys(self, keys: list[str]) -> None:
+        for i in range(0, len(keys), 1000):  # batas DeleteObjects S3
+            batch = [{"Key": k} for k in keys[i : i + 1000]]
+            self._s3.delete_objects(Bucket=self.bucket, Delete={"Objects": batch, "Quiet": True})

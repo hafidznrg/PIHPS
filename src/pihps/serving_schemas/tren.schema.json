@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "serving/tren/<komoditas_id>.json",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "tanggal_acuan": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "komoditas_id": {
+      "type": "string",
+      "pattern": "^(cat|com)_\\d+$"
+    },
+    "mingguan": {
+      "type": "object",
+      "properties": {
+        "minggu": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "harga": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[1-4]$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "minggu",
+        "harga"
+      ],
+      "additionalProperties": false
+    },
+    "nasional_terkini": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "jenis_pasar_id": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          "komoditas_id": {
+            "type": "string",
+            "pattern": "^(cat|com)_\\d+$"
+          },
+          "tanggal": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "harga": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "tanggal_sebelumnya": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "harga_sebelumnya": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "harga_7h": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "harga_30h": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "harga_1th": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perubahan_pct_sebelumnya": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "perubahan_pct_7h": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "perubahan_pct_30h": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "perubahan_pct_1th": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "arah_7h": {
+            "enum": [
+              "naik",
+              "turun",
+              "tetap",
+              null
+            ]
+          },
+          "selisih_pct_nasional": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "is_aktif": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "jenis_pasar_id",
+          "komoditas_id",
+          "tanggal",
+          "harga",
+          "tanggal_sebelumnya",
+          "harga_sebelumnya",
+          "harga_7h",
+          "harga_30h",
+          "harga_1th",
+          "perubahan_pct_sebelumnya",
+          "perubahan_pct_7h",
+          "perubahan_pct_30h",
+          "perubahan_pct_1th",
+          "arah_7h",
+          "selisih_pct_nasional",
+          "is_aktif"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "provinsi_terkini": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kode_wilayah": {
+            "type": "string",
+            "pattern": "^(nasional|prov-\\d+|kab-\\d+)$"
+          },
+          "nama": {
+            "type": "string"
+          },
+          "kode_bps": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{2}(\\d{2})?$"
+          },
+          "tanggal": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "harga": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "perubahan_pct_7h": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "selisih_pct_nasional": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kode_wilayah",
+          "nama",
+          "kode_bps",
+          "tanggal",
+          "harga",
+          "perubahan_pct_7h",
+          "selisih_pct_nasional"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "tanggal_acuan",
+    "komoditas_id",
+    "mingguan",
+    "nasional_terkini",
+    "provinsi_terkini"
+  ],
+  "additionalProperties": false
+}

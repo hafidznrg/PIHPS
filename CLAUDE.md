@@ -38,6 +38,8 @@ gratis. Atribusi data selalu ke "PIHPS Nasional – Bank Indonesia".
 - Python 3.12, `uv`, httpx, boto3; transformasi (Fase 2) dengan dbt-duckdb.
 - `uv sync` · `uv run pytest -q` · `uv run ruff check .` · `uv run ruff format .`
 - Probe API: workflow `probe` (manual). Extractor: `uv run python -m pihps.extract --help`.
+- Web: `uv run python -m pihps.serving demo --dest web/public/data`, lalu di `web/`:
+  `npm ci` · `npm run check` · `npm test` · `npm run build` · `npx playwright test`.
 
 ## Struktur penting
 
@@ -46,6 +48,9 @@ gratis. Atribusi data selalu ke "PIHPS Nasional – Bank Indonesia".
 - `src/pihps/storage.py` — akses R2
 - `src/pihps/notify.py` — Telegram
 - `src/pihps/probe.py`, `src/pihps/extract.py` — entry point
+- `src/pihps/transform.py`, `src/pihps/freshness.py` — transformasi (dbt) & freshness check
+- `src/pihps/serving.py` + `src/pihps/serving_schemas/` — serving layer JSON berkontrak untuk web
+- `transform/` — proyek dbt-duckdb (staging, marts, serving, tes); `web/` — situs Astro + ECharts
 - `docs/PLAN.md` — rencana hidup; perbarui saat status atau keputusan berubah
 - `docs/api-notes.md`, `docs/raw-layout.md` — referensi teknis
 

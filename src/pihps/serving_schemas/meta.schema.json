@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "serving/meta.json",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "tanggal_acuan": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "dibuat_pada": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sumber": {
+      "type": "object",
+      "properties": {
+        "nama": {
+          "const": "PIHPS Nasional – Bank Indonesia"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "nama",
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "jenis_pasar": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          "slug": {
+            "enum": [
+              "pasar_tradisional",
+              "pasar_modern",
+              "pedagang_besar",
+              "produsen"
+            ]
+          },
+          "nama": {
+            "type": "string"
+          },
+          "rantai_pasok": {
+            "enum": [
+              "eceran",
+              "grosir",
+              "produsen"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "nama",
+          "rantai_pasok"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "kategori": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(cat|com)_\\d+$"
+          },
+          "nama": {
+            "type": "string"
+          },
+          "urutan": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "komoditas": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(cat|com)_\\d+$"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "nama",
+          "urutan",
+          "komoditas"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "komoditas": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(cat|com)_\\d+$"
+          },
+          "nama": {
+            "type": "string"
+          },
+          "tipe": {
+            "enum": [
+              "kategori",
+              "komoditas"
+            ]
+          },
+          "level": {
+            "enum": [
+              1,
+              2
+            ]
+          },
+          "kategori_id": {
+            "type": "string",
+            "pattern": "^(cat|com)_\\d+$"
+          },
+          "satuan": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "urutan": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "het": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "harga": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "satuan": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "berlaku_mulai": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sumber": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "harga",
+                  "satuan",
+                  "berlaku_mulai",
+                  "sumber"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "nama",
+          "tipe",
+          "level",
+          "kategori_id",
+          "satuan",
+          "urutan",
+          "het"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "wilayah": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "kode": {
+            "type": "string",
+            "pattern": "^(nasional|prov-\\d+|kab-\\d+)$"
+          },
+          "nama": {
+            "type": "string",
+            "minLength": 1
+          },
+          "level": {
+            "enum": [
+              "nasional",
+              "provinsi",
+              "kabkota"
+            ]
+          },
+          "kode_provinsi": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nama_provinsi": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kode_bps": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{2}(\\d{2})?$"
+          },
+          "jenis_pasar": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "enum": [
+                1,
+                2,
+                3,
+                4
+              ]
+            }
+          },
+          "jenis_pasar_aktif": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "enum": [
+                1,
+                2,
+                3,
+                4
+              ]
+            }
+          },
+          "tanggal_terakhir": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "is_aktif": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kode",
+          "nama",
+          "level",
+          "kode_provinsi",
+          "nama_provinsi",
+          "kode_bps",
+          "jenis_pasar",
+          "jenis_pasar_aktif",
+          "tanggal_terakhir",
+          "is_aktif"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "statistik": {
+      "type": "object",
+      "properties": {
+        "sel_harga": {
+          "type": "integer"
+        },
+        "tanggal_awal": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "tanggal_akhir": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "sel_outlier": {
+          "type": "integer"
+        },
+        "wilayah": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "sel_harga",
+        "tanggal_awal",
+        "tanggal_akhir",
+        "sel_outlier",
+        "wilayah"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "tanggal_acuan",
+    "dibuat_pada",
+    "sumber",
+    "jenis_pasar",
+    "kategori",
+    "komoditas",
+    "wilayah",
+    "statistik"
+  ],
+  "additionalProperties": false
+}

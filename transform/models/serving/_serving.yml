@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: srv_harga_bersih
+    description: Sel fct_harga_harian tanpa outlier; dasar semua model serving.
+  - name: srv_tanggal_acuan
+    description: Satu baris, tanggal harga terbaru nasional pasar tradisional.
+    columns:
+      - name: tanggal_acuan
+        data_tests: [not_null]
+  - name: srv_harga_terkini
+    description: Harga terbaru per seri + pembanding (sebelumnya, 7 hari, 30 hari, 1 tahun, nasional).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [jenis_pasar_id, kode_wilayah, komoditas_id]
+    columns:
+      - name: harga
+        data_tests: [not_null]
+      - name: arah_7h
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [naik, turun, tetap]
+  - name: srv_seri_harian
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [jenis_pasar_id, kode_wilayah, komoditas_id, tanggal]
+  - name: srv_seri_bulanan
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [jenis_pasar_id, kode_wilayah, komoditas_id, bulan]
+  - name: srv_tren_mingguan
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [jenis_pasar_id, komoditas_id, minggu]
+  - name: srv_wilayah
+    description: Wilayah yang punya data, untuk pemilih di web.
+    columns:
+      - name: kode_wilayah
+        data_tests: [unique, not_null]
+      - name: nama
+        data_tests: [not_null]

@@ -1,0 +1,85 @@
+version: 2
+
+seeds:
+  - name: wilayah_provinsi_bps
+    description: >
+      Pemetaan id provinsi PIHPS (urutan internal PIHPS) ke kode wilayah BPS 2 digit.
+      Wilayah PIHPS masih 34 provinsi (sebelum pemekaran Papua 2022), jadi Papua = 94 dan
+      Papua Barat = 91 versi BPS lama. Kab/kota belum dipetakan.
+    config:
+      column_types:
+        pihps_provinsi_id: integer
+        nama_pihps: varchar
+        kode_bps: varchar
+        nama_bps: varchar
+    columns:
+      - name: pihps_provinsi_id
+        data_tests: [unique, not_null]
+      - name: kode_bps
+        data_tests: [unique, not_null]
+
+  - name: het_komoditas
+    description: >
+      Harga Eceran Tertinggi / Harga Acuan per komoditas PIHPS beserta masa berlaku.
+      Sengaja masih kosong: sumber resmi dan tanggal berlaku belum diputuskan
+      (docs/PLAN.md, keputusan terbuka). Satu baris per komoditas per masa berlaku.
+    config:
+      column_types:
+        komoditas_id: varchar
+        het: integer
+        satuan: varchar
+        berlaku_mulai: date
+        berlaku_sampai: date
+        keterangan: varchar
+        sumber: varchar
+
+  - name: wilayah_kabkota_bps
+    description: >
+      Pemetaan id kab/kota PIHPS ke kode BPS 4 digit (MFD BPS, 34 provinsi, Januari 2018 —
+      sebelum pemekaran Papua 2022, sama seperti cakupan PIHPS). 148 cocok otomatis (nama
+      sama dalam provinsi yang sama), 23 manual: ejaan BPS berbeda (mis. "KOTA D U M A I"),
+      atau PIHPS memakai nama kota pasar yang sebenarnya ibu kota kabupaten (mis. Kota Sampit ->
+      Kab. Kotawaringin Timur). kode_bps tidak unik: PIHPS punya dua id untuk Kota Surakarta.
+    config:
+      column_types:
+        pihps_kabkota_id: integer
+        nama_pihps: varchar
+        pihps_provinsi_id: integer
+        kode_bps: varchar
+        nama_bps: varchar
+        cara_cocok: varchar
+        catatan: varchar
+    columns:
+      - name: pihps_kabkota_id
+        data_tests: [unique, not_null]
+      - name: kode_bps
+        data_tests:
+          - not_null
+          - dalam_rentang:
+              arguments:
+                min_value: "'1101'"
+                max_value: "'9471'"
+      - name: cara_cocok
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [otomatis, manual]
+
+  - name: hari_libur
+    description: >
+      Libur nasional dan cuti bersama Indonesia 2017-2027 (jenis = libur_nasional /
+      cuti_bersama), dibangkitkan oleh scripts/gen_hari_libur.py dari paket `holidays`.
+      Dipakai dim_tanggal (is_hari_kerja) dan pihps.freshness (hari kerja tanpa libur).
+    config:
+      column_types:
+        tanggal: date
+        nama: varchar
+        jenis: varchar
+    columns:
+      - name: tanggal
+        data_tests: [unique, not_null]
+      - name: jenis
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [libur_nasional, cuti_bersama]

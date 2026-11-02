@@ -1,0 +1,35 @@
+pihps_provinsi_id,nama_pihps,kode_bps,nama_bps
+1,Aceh,11,Aceh
+2,Sumatera Utara,12,Sumatera Utara
+3,Sumatera Barat,13,Sumatera Barat
+4,Riau,14,Riau
+5,Kepulauan Riau,21,Kepulauan Riau
+6,Jambi,15,Jambi
+7,Bengkulu,17,Bengkulu
+8,Sumatera Selatan,16,Sumatera Selatan
+9,Kepulauan Bangka Belitung,19,Kepulauan Bangka Belitung
+10,Lampung,18,Lampung
+11,Banten,36,Banten
+12,Jawa Barat,32,Jawa Barat
+13,DKI Jakarta,31,DKI Jakarta
+14,Jawa Tengah,33,Jawa Tengah
+15,DI Yogyakarta,34,DI Yogyakarta
+16,Jawa Timur,35,Jawa Timur
+17,Bali,51,Bali
+18,Nusa Tenggara Barat,52,Nusa Tenggara Barat
+19,Nusa Tenggara Timur,53,Nusa Tenggara Timur
+20,Kalimantan Barat,61,Kalimantan Barat
+21,Kalimantan Selatan,63,Kalimantan Selatan
+22,Kalimantan Tengah,62,Kalimantan Tengah
+23,Kalimantan Timur,64,Kalimantan Timur
+24,Kalimantan Utara,65,Kalimantan Utara
+25,Gorontalo,75,Gorontalo
+26,Sulawesi Selatan,73,Sulawesi Selatan
+27,Sulawesi Tenggara,74,Sulawesi Tenggara
+28,Sulawesi Tengah,72,Sulawesi Tengah
+29,Sulawesi Utara,71,Sulawesi Utara
+30,Sulawesi Barat,76,Sulawesi Barat
+31,Maluku,81,Maluku
+32,Maluku Utara,82,Maluku Utara
+33,Papua,94,Papua
+34,Papua Barat,91,Papua Barat

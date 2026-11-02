@@ -1,0 +1,75 @@
+---
+import Base from "../layouts/Base.astro";
+import { getMeta } from "../lib/data";
+import { angka, tanggalPanjang, tanggalPendek } from "../lib/format";
+import { href } from "../lib/url";
+
+const meta = getMeta();
+const s = meta.statistik;
+const nProv = meta.wilayah.filter((w) => w.level === "provinsi").length;
+const nKab = meta.wilayah.filter((w) => w.level === "kabkota").length;
+const tahap = [
+  { judul: "Ambil", isi: "Setiap hari kerja pukul 15.00 WIB, robot mengambil harga 7 hari terakhir dari PIHPS untuk 4 jenis pasar, nasional sampai kabupaten/kota." },
+  { judul: "Simpan apa adanya", isi: "Respons asli disimpan tanpa diubah (raw) beserta catatan setiap permintaan, sehingga semua angka bisa ditelusuri ke sumbernya." },
+  { judul: "Bersihkan & uji", isi: "Data diubah ke tabel rapi, revisi dari BI diambil yang terbaru, lalu diuji otomatis: tidak ada duplikat, semua harga terbaca, semua wilayah dan komoditas dikenali." },
+  { judul: "Sajikan", isi: "Ringkasan kecil siap tampil dibuat untuk situs ini, dicek bentuk dan ukurannya, lalu situs dibangun ulang." },
+];
+---
+
+<Base title="Tentang data" description="Dari mana data harga pangan di situs ini berasal, bagaimana diolah, dan apa keterbatasannya." aktif="tentang">
+  <section class="hero">
+    <h1>Tentang data</h1>
+    <p class="hero__ket">Situs ini menampilkan ulang data harga pangan strategis agar mudah dibaca dari ponsel.</p>
+  </section>
+
+  <div class="prosa bagian">
+    <h2>Sumber</h2>
+    <p>
+      Semua harga berasal dari <a href={meta.sumber.url} rel="noopener">{meta.sumber.nama}</a> (Pusat Informasi Harga Pangan Strategis).
+      Situs ini dibuat sebagai proyek portofolio rekayasa data dan <strong>tidak berafiliasi dengan Bank Indonesia</strong>. Untuk keperluan resmi,
+      rujuk situs PIHPS langsung.
+    </p>
+    <ul>
+      <li>{meta.komoditas.filter((k) => k.level === 2).length} komoditas dalam {meta.kategori.length} kelompok (beras, daging, telur, bawang, cabai, minyak goreng, gula).</li>
+      <li>4 jenis pasar: pasar tradisional, pasar modern (supermarket), pedagang besar (grosir), dan produsen.</li>
+      <li>Nasional, {nProv} provinsi, dan {nKab} kabupaten/kota.</li>
+      <li>{angka(s.sel_harga)} data harga harian, {tanggalPendek(s.tanggal_awal)} sampai {tanggalPendek(s.tanggal_akhir)}.</li>
+    </ul>
+
+    <h2>Cara membaca</h2>
+    <ul>
+      <li>Harga adalah <strong>rata-rata</strong> dari pasar-pasar yang dipantau di wilayah itu, dalam rupiah per kilogram, bukan harga satu pedagang.</li>
+      <li>"Naik/turun dari minggu lalu" membandingkan harga terbaru dengan harga pada hari pasar terakhir yang berjarak setidaknya 7 hari. Perubahan di bawah 0,5% ditulis "stabil".</li>
+      <li>PIHPS terbit setiap Senin–Jumat, termasuk hari libur nasional, dan tidak terbit di akhir pekan.</li>
+      <li>Kartu yang tampak pudar berarti datanya sudah lebih dari 2 minggu tidak diperbarui di sumber.</li>
+    </ul>
+
+    <h2 id="metode">Cara data diolah</h2>
+    <ol class="batang-daftar" style="counter-reset: none">
+      {tahap.map((t, i) => (
+        <li class="panel">
+          <strong>{i + 1}. {t.judul}.</strong> {t.isi}
+        </li>
+      ))}
+    </ol>
+    <p>
+      Nilai yang hampir pasti salah ketik di sumber — misalnya kelebihan atau kekurangan satu angka nol — ditandai otomatis bila menyimpang lebih dari
+      3 kali lipat dari median harga 11 hari pasar di sekitarnya, atau di luar Rp500–Rp1.000.000 per kg, lalu tidak ditampilkan di grafik dan kartu. Saat ini ada {angka(s.sel_outlier)} nilai
+      seperti itu. Data aslinya tetap disimpan dan bisa diperiksa di halaman <a href={href("jelajahi/")}>Jelajahi Data</a>.
+    </p>
+
+    <h2>Keterbatasan</h2>
+    <ul>
+      <li>Daftar wilayah mengikuti PIHPS: 34 provinsi (sebelum pemekaran Papua 2022). Beberapa "kota" di PIHPS sebenarnya kota pasar, ibu kota kabupaten.</li>
+      <li>Data kabupaten/kota baru dikumpulkan harian sejak November 2026; riwayat panjangnya menyusul.</li>
+      <li>Tidak semua komoditas tersedia di setiap jenis pasar dan wilayah, terutama di tingkat produsen.</li>
+      <li>Harga Eceran Tertinggi (HET) belum ditampilkan.</li>
+    </ul>
+
+    <h2>Terbuka</h2>
+    <p>
+      Seluruh kode — pengambil data, model transformasi, uji kualitas data, dan situs ini — ada di
+      <a href="https://github.com/hafidznrg/PIHPS" rel="noopener">GitHub</a>. Data diproses terakhir {tanggalPanjang(meta.dibuat_pada.slice(0, 10))}.
+    </p>
+  </div>
+</Base>

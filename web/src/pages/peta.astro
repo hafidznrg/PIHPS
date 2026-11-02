@@ -1,0 +1,189 @@
+---
+import Base from "../layouts/Base.astro";
+import { getMeta, getPeta, komoditasMap } from "../lib/data";
+import { tanggalPanjang } from "../lib/format";
+import { ringkasPeta, tabelPeta } from "../lib/peta";
+import { BASE, dataUrl } from "../lib/url";
+
+const meta = getMeta();
+const kmap = komoditasMap(meta);
+const awalK = kmap.has("com_3") ? "com_3" : (meta.komoditas.find((k) => k.level === 2)?.id ?? "com_1");
+const awalP = meta.jenis_pasar[0]!;
+const rows = getPeta(awalP.slug).komoditas[awalK] ?? [];
+const clientCtx = {
+  pasar: meta.jenis_pasar.map((p) => ({ slug: p.slug, nama: p.nama })),
+  komoditas: Object.fromEntries(meta.komoditas.map((k) => [k.id, { nama: k.nama, satuan: k.satuan }])),
+  dataBase: dataUrl("serving/peta/"),
+  base: BASE,
+};
+---
+
+<Base
+  title="Peta harga pangan per provinsi"
+  description="Bandingkan harga beras, cabai, bawang, daging, telur, minyak goreng, dan gula antarprovinsi di peta Indonesia. Data PIHPS Bank Indonesia."
+  aktif="peta"
+>
+  <section class="hero">
+    <h1>Peta harga per provinsi</h1>
+    <p class="hero__ket">Warna makin gelap berarti harga makin mahal. Data terbaru per provinsi, {tanggalPanjang(meta.tanggal_acuan)}.</p>
+  </section>
+
+  <section class="bagian" id="peta" data-ctx={JSON.stringify(clientCtx)} data-k={awalK} data-p={awalP.slug}>
+    <div class="kontrol">
+      <div class="isian">
+        <label for="peta-komoditas">Komoditas</label>
+        <select id="peta-komoditas">
+          {meta.kategori.map((kat) => (
+            <optgroup label={kat.nama}>
+              <option value={kat.id} selected={kat.id === awalK}>{kat.nama} (rata-rata kelompok)</option>
+              {kat.komoditas.map((id) => <option value={id} selected={id === awalK}>{kmap.get(id)?.nama}</option>)}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+      <div class="tab" role="tablist" aria-label="Jenis pasar">
+        {meta.jenis_pasar.map((p) => (
+          <button type="button" role="tab" data-p={p.slug} aria-selected={p.slug === awalP.slug ? "true" : "false"}>{p.nama}</button>
+        ))}
+      </div>
+    </div>
+    <div class="panel">
+      <p id="peta-ringkas">{ringkasPeta(rows)}</p>
+      <div id="peta-grafik" class="grafik grafik--tinggi grafik-memuat" role="img" aria-label="Peta Indonesia, warna provinsi menunjukkan tingkat harga">Memuat peta…</div>
+    </div>
+    <div class="panel tabel-wadah" id="peta-tabel">
+      <Fragment set:html={tabelPeta(rows, BASE).value} />
+    </div>
+    <p class="catatan">Provinsi tanpa warna belum punya data aktif untuk pilihan ini. Wilayah mengikuti 34 provinsi yang dipakai PIHPS.</p>
+  </section>
+
+  <script>
+    import geoUrl from "../data/provinsi-34.geo.json?url";
+    import { rupiah, persen } from "../lib/format";
+    import { ringkasPeta, tabelPeta, urutkan } from "../lib/peta";
+    import type { PetaDoc } from "../lib/types";
+
+    interface Ctx {
+      pasar: { slug: string; nama: string }[];
+      komoditas: Record<string, { nama: string; satuan: string | null }>;
+      dataBase: string;
+      base: string;
+    }
+    const root = document.getElementById("peta")!;
+    const ctx = JSON.parse(root.dataset["ctx"]!) as Ctx;
+    const params = new URLSearchParams(location.search);
+    let k = params.get("k") && ctx.komoditas[params.get("k")!] ? params.get("k")! : root.dataset["k"]!;
+    let p = ctx.pasar.some((x) => x.slug === params.get("p")) ? params.get("p")! : root.dataset["p"]!;
+
+    const pilih = document.getElementById("peta-komoditas") as HTMLSelectElement;
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>("[data-p]")];
+    const el = document.getElementById("peta-grafik")!;
+    const tabel = document.getElementById("peta-tabel")!;
+    const ringkas = document.getElementById("peta-ringkas")!;
+    const cache = new Map<string, Promise<PetaDoc>>();
+    const load = (slug: string) => {
+      if (!cache.has(slug)) cache.set(slug, fetch(`${ctx.dataBase}${slug}.json`).then((r) => r.json()));
+      return cache.get(slug)!;
+    };
+    interface Geo {
+      features: { properties: { kode_bps: string; name: string } }[];
+    }
+    // nama fitur GeoJSON = nama BPS; data peta memakai kode BPS -> petakan lewat properti
+    let geoNames = new Map<string, string>();
+    const nameOf = (kode: string | null) => (kode ? (geoNames.get(kode) ?? kode) : "");
+    const chartsP = Promise.all([
+      import("../lib/charts"),
+      fetch(geoUrl).then((r) => r.json() as Promise<Geo>),
+    ]).then(([charts, geo]) => {
+      charts.echarts.registerMap("indonesia", geo as never);
+      geoNames = new Map(geo.features.map((f) => [f.properties.kode_bps, f.properties.name]));
+      el.classList.remove("grafik-memuat");
+      el.textContent = "";
+      return { ...charts, chart: charts.mount(el) };
+    });
+
+    async function render() {
+      pilih.value = k;
+      tabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset["p"] === p)));
+      const url = new URL(location.href);
+      url.searchParams.set("k", k);
+      url.searchParams.set("p", p);
+      history.replaceState(null, "", url);
+
+      const doc = await load(p);
+      const rows = doc.komoditas[k] ?? [];
+      tabel.innerHTML = tabelPeta(rows, ctx.base).value;
+      ringkas.textContent = ringkasPeta(rows) || "Belum ada data provinsi untuk pilihan ini.";
+
+      const { chart, cssVar } = await chartsP;
+      const aktif = urutkan(rows);
+      const values = aktif.map((r) => r.harga);
+      const byName = new Map(aktif.map((r) => [r.kode_bps, r]));
+      chart.setOption(
+        {
+          tooltip: {
+            trigger: "item",
+            confine: true,
+            backgroundColor: cssVar("--permukaan"),
+            borderColor: cssVar("--garis"),
+            textStyle: { color: cssVar("--teks") },
+            formatter: (info: { name: string; data?: { kode: string } }) => {
+              const r = info.data ? byName.get(info.data.kode) : undefined;
+              if (!r) return `${info.name}<br/>Belum ada data`;
+              return `<strong>${r.nama}</strong><br/>${rupiah(r.harga)}<br/>vs nasional ${persen(r.selisih_pct_nasional)}<br/>vs minggu lalu ${persen(r.perubahan_pct_7h)}`;
+            },
+          },
+          visualMap: values.length
+            ? {
+                min: Math.min(...values),
+                max: Math.max(...values),
+                calculable: false,
+                orient: "horizontal",
+                left: "center",
+                bottom: 0,
+                itemWidth: 12,
+                itemHeight: 160,
+                text: ["Mahal", "Murah"],
+                textStyle: { color: cssVar("--teks-redup") },
+                inRange: { color: [cssVar("--peta-1"), cssVar("--peta-2")] },
+                formatter: (v: number) => rupiah(Math.round(v)),
+              }
+            : { show: false, min: 0, max: 1 },
+          series: [
+            {
+              type: "map",
+              map: "indonesia",
+              nameProperty: "name",
+              roam: true,
+              scaleLimit: { min: 1, max: 8 },
+              aspectScale: 1,
+              // keempat sisi diisi: ECharts memuat seluruh Indonesia di dalam kotak, rasio tetap
+              left: 4,
+              right: 4,
+              top: 8,
+              bottom: 48,
+              itemStyle: { areaColor: cssVar("--permukaan-2"), borderColor: cssVar("--latar"), borderWidth: 0.6 },
+              emphasis: { label: { show: false }, itemStyle: { areaColor: cssVar("--seri-2") } },
+              select: { disabled: true },
+              data: aktif.map((r) => ({ name: nameOf(r.kode_bps), value: r.harga, kode: r.kode_bps })),
+            },
+          ],
+        },
+        { notMerge: true },
+      );
+    }
+
+    render().catch(() => (el.textContent = "Gagal memuat peta. Tabel di bawah tetap bisa dipakai."));
+
+    pilih.addEventListener("change", () => {
+      k = pilih.value;
+      void render();
+    });
+    tabs.forEach((t) =>
+      t.addEventListener("click", () => {
+        p = t.dataset["p"]!;
+        void render();
+      }),
+    );
+  </script>
+</Base>
