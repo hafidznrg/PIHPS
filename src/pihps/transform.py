@@ -364,6 +364,37 @@ def profile_outputs(db_path: Path) -> dict[str, Any]:
             order by harga desc limit 10
             """
         ),
+        "lonjakan_per_jenis_pasar": rows(
+            """
+            with seri as (
+                select *, lag(harga) over (
+                    partition by jenis_pasar_id, kode_wilayah, komoditas_id order by tanggal
+                ) as sebelumnya
+                from fct_harga_harian
+            )
+            select jenis_pasar_id, count(*) as lonjakan
+            from seri
+            where harga > 3 * sebelumnya or harga * 3 < sebelumnya
+            group by all order by jenis_pasar_id
+            """
+        ),
+        "lonjakan_contoh": rows(
+            """
+            with seri as (
+                select *,
+                    lag(harga) over w as sebelumnya, lag(tanggal) over w as tanggal_sebelumnya
+                from fct_harga_harian
+                window w as (
+                    partition by jenis_pasar_id, kode_wilayah, komoditas_id order by tanggal
+                )
+            )
+            select jenis_pasar_id, kode_wilayah, komoditas_id, tanggal_sebelumnya,
+                   sebelumnya, tanggal, harga
+            from seri
+            where harga > 3 * sebelumnya or harga * 3 < sebelumnya
+            order by greatest(harga / sebelumnya, sebelumnya / harga) desc limit 10
+            """
+        ),
         "dim_wilayah": rows(
             """
             select level_wilayah, count(*) as versi,
@@ -483,6 +514,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             profile = profile_outputs(args.db)
         except Exception as exc:  # noqa: BLE001 - profil hanya pelengkap laporan
             log.exception("profil data gagal: %s", exc)
+        log.info("profil %s", json.dumps(profile, default=str, ensure_ascii=False))
     published = None
     publish_error = None
     if build.success and args.publish:

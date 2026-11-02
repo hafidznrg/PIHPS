@@ -21,7 +21,10 @@ class R2Storage:
             aws_access_key_id=cfg.access_key_id,
             aws_secret_access_key=cfg.secret_access_key,
             region_name="auto",
-            config=Config(retries={"max_attempts": 5, "mode": "standard"}),
+            config=Config(
+                retries={"max_attempts": 5, "mode": "standard"},
+                max_pool_connections=32,  # unduh/unggah paralel di pihps.transform
+            ),
         )
 
     def put_json(self, key: str, obj: Any, *, gzip_body: bool = False) -> int:
