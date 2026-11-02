@@ -13,6 +13,14 @@ models:
     columns:
       - name: harga
         data_tests: [not_null]
+      - name: is_outlier
+        description: >
+          Dugaan salah input di sumber (ditandai, tidak dibuang): harga < var outlier_harga_min
+          atau > outlier_faktor x / < 1/outlier_faktor dari median +-outlier_jendela hari
+          publikasi di seri yang sama. Serving dan web memakai sel dengan is_outlier = false.
+        data_tests: [not_null]
+      - name: harga_median_sekitar
+        description: Median harga di jendela sekitar tanggal ini (pembanding is_outlier).
       - name: tanggal
         data_tests:
           - not_null

@@ -24,7 +24,7 @@ mudah dipahami masyarakat awam.
 | F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian aktif mulai 2 Nov |
 | F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Sedang di-review (branch `claude/adoring-shannon-wtzodk`): proyek `transform/` + `pihps.transform` + workflow `transform` (setelah extract/backfill). Run nyata 2 Nov: 6 manifest, 1.236 file raw, 344 ribu baris staging, 63 node dbt lolos (1 warn), 19 Parquet di R2, Telegram terkirim; run ulang dengan cache: sync 0,4 detik |
 | F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Sedang dikerjakan: workflow backfill siap (uji e2e 2 Nov lolos: 4/4 job, 222 request, 1,54 detik/request), backfill penuh nasional + provinsi berjalan sejak 2 Nov 08.15 WIB ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499), ±7 jam); freshness check: workflow `freshness` (`pihps.freshness`) di PR F2 |
-| F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Belum |
+| F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Sedang dikerjakan: Astro + ECharts di `web/`, serving layer dbt (`serving/`), halaman Jelajahi (DuckDB-WASM) |
 | F5 Analisis & publikasi | Volatilitas, disparitas, musiman, margin rantai pasok; README akhir | Belum |
 
 F1–F3 diprioritaskan selama kredit sesi cloud Claude Code masih ada (habis 5 Nov 2026, 14.59 WIB).
@@ -103,7 +103,7 @@ Temuan F2 (staging penuh pasar tradisional 2017–2026, 3,15 juta baris):
 | Manifest | `raw/pihps/_manifests/ingest_date=…/run_id=…/_manifest.json` | JSON | URL, params, status HTTP, waktu, sha256, ringkasan run |
 | Staging | `staging/stg_pihps__harga/tahun=…/bulan=…/` | Parquet | Format panjang, tipe benar, kode BPS provinsi, dedup *latest wins* |
 | Marts | `marts/` | Parquet | `fct_harga_harian/tahun=…/`, `dim_wilayah` (SCD2), `dim_komoditas` (+HET), `dim_pasar`, `dim_tanggal`, `_build.json` |
-| Serving | `serving/` | JSON/Parquet kecil | Agregat siap tampil untuk web |
+| Serving | `serving/` | JSON kecil berkontrak (JSON Schema + batas ukuran) | `meta.json`, `wilayah/<kode>.json`, `peta/<jenis_pasar>.json`, `tren/<komoditas>.json`; dibangun model dbt `srv_*`, ditulis `pihps.serving` |
 
 Kunci unik staging: `tanggal × jenis_pasar × kode_wilayah × komoditas_id`. Run harian mengambil
 ulang 7 hari terakhir; dedup memilih `_ingested_at` terbaru sehingga revisi BI ikut tertangkap.
@@ -120,6 +120,21 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | Cron tidak jalan | Ringkasan harian (selalu dikirim, sukses maupun gagal) tidak masuk | Ketiadaan pesan |
 | Kualitas data | dbt tests: unik, not null, relationships, harga raw terparse (error); rentang harga wajar, lonjakan, kelengkapan nasional (warn) | Error: workflow `transform` gagal, publish dibatalkan, Telegram. Warn: tetap publish, jumlah di ringkasan Telegram |
 
+## Web (F4)
+
+- **Stack**: Astro (situs statis) + ECharts. Data halaman = JSON serving yang dibuat dbt saat
+  transform, disalin ke situs saat build; tidak ada server atau API.
+- **Serving layer = kontrak data**: model `srv_*` (logika & tes di dbt) → `pihps.serving` menulis
+  JSON dengan nama file tetap, divalidasi JSON Schema dan batas ukuran per file. Web hanya
+  bergantung pada kontrak ini, bukan pada tabel marts.
+- **Outlier**: `fct_harga_harian.is_outlier` menandai salah input (median bergulir per seri);
+  marts tetap setia ke sumber, serving memakai sel bersih.
+- **Halaman**: Beranda (harga hari ini nasional, naik/turun), Wilayah (provinsi & kab/kota),
+  Peta provinsi, Komoditas (tren sejak 2017 + rantai pasok produsen → pedagang besar → eceran),
+  Jelajahi (DuckDB-WASM membaca Parquet marts dari origin yang sama), Tentang data.
+- **Hosting**: GitHub Pages lewat Actions (repo publik, tanpa secret tambahan). Workflow `web`
+  berjalan setelah `transform`.
+
 ## Risiko & mitigasi
 
 | Risiko | Mitigasi |
@@ -135,7 +150,6 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 
 - [ ] Backfill kab/kota (45.878 request, ±19–32 jam): kapan dijalankan, dan perlukah daftar kab/kota historis (`GetRefRegency` hanya kondisi sekarang)?
 - [ ] Warehouse tambahan untuk query ad-hoc: MotherDuck, BigQuery, atau cukup DuckDB + Parquet di R2?
-- [ ] Stack web: Next.js/Astro + ECharts, Evidence.dev, atau DuckDB-WASM di browser?
 - [ ] Sumber nilai HET (beras, Minyakita, gula) dan tanggal berlakunya (seed `transform/seeds/het_komoditas.csv` siap, masih kosong)
 
 ## Log keputusan
@@ -166,3 +180,6 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | 2 Nov 2026 | Freshness membaca `marts/_build.json` (bukan raw) | Sekaligus mendeteksi transform yang berhenti |
 | 2 Nov 2026 | Kalender libur = seed `hari_libur` (libur nasional + cuti bersama 2017–2027) dibangkitkan `scripts/gen_hari_libur.py` dari paket `holidays`, bukan dependency pipeline | Hari kerja yang benar untuk freshness (tanpa alarm palsu Lebaran) dan `dim_tanggal.is_hari_kerja` untuk analisis F5; diperbarui saat SKB tahun baru terbit |
 | 2 Nov 2026 | Kab/kota PIHPS → kode BPS 4 digit lewat seed `wilayah_kabkota_bps` dari MFD BPS Jan 2018 (34 provinsi): 148 otomatis, 23 manual; kab/kota baru tanpa pemetaan = warn | Cakupan provinsi PIHPS masih pra-pemekaran; "Kota X" PIHPS kadang kota pasar = ibu kota kabupaten (Sampit, Tembilahan, Watampone, …) |
+| 2 Nov 2026 | Web F4 = Astro + ECharts + serving layer dbt, + satu halaman Jelajahi berbasis DuckDB-WASM | Diputuskan pemilik project: cepat di HP untuk publik; nilai portofolio ada di serving layer sebagai kontrak data; DuckDB-WASM menunjukkan lakehouse bisa di-query tanpa server |
+| 2 Nov 2026 | Serving ditulis Python dari model dbt (bukan COPY JSON DuckDB); format kolumnar ringkas (array tanggal bersama + array harga) | Nama file per wilayah/komoditas tetap dan struktur bersarang; ukuran kecil untuk HP |
+| 2 Nov 2026 | Hosting GitHub Pages; Parquet marts ikut disajikan dari origin situs untuk halaman Jelajahi | Tanpa bucket R2 publik/CORS dan tanpa secret baru; pembacaan Parquet via HTTP range |

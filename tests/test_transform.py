@@ -228,6 +228,13 @@ def test_unparseable_price_fails_build(tmp_path):
 def test_price_outlier_is_warning_only(tmp_path):
     res = _build_with(tmp_path, {("Beras", "28/10/2026"): "1,650,000"})
     assert res.success, res.errors
+    # salah digit ditandai di fakta (tidak dibuang); sel lain di seri yang sama tidak
+    flagged = query(
+        tmp_path,
+        f"""select tanggal, harga, harga_median_sekitar from {FCT}
+            where is_outlier order by tanggal""",
+    )
+    assert flagged == [(date(2026, 10, 28), 1650000, 16450)]
     warned = {w["unique_id"].split(".")[0] for w in res.warnings}
     assert any("dalam_rentang_stg_pihps__harga_harga" in w for w in warned)
     assert any("assert_lonjakan_harga_harian" in w for w in warned)

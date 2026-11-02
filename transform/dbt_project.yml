@@ -23,6 +23,12 @@ vars:
   # Rentang harga wajar per kg (Rp) untuk tes kualitas data berseverity warn.
   harga_wajar_min: 1000
   harga_wajar_max: 500000
+  # Deteksi outlier (fct_harga_harian.is_outlier): harga di bawah batas absolut, atau
+  # menyimpang > faktor x dari median 11 hari publikasi di sekitarnya pada seri yang sama.
+  outlier_harga_min: 500
+  outlier_faktor: 3
+  outlier_jendela: 5
+  outlier_min_tetangga: 5
 
 models:
   pihps:

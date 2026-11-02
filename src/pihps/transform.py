@@ -407,6 +407,14 @@ def profile_outputs(db_path: Path) -> dict[str, Any]:
             order by greatest(harga / sebelumnya, sebelumnya / harga) desc limit 10
             """
         ),
+        "outlier": rows(
+            """
+            select jenis_pasar_id, count(*) filter (where is_outlier) as outlier,
+                   count(*) as sel,
+                   round(count(*) filter (where is_outlier) / count(*), 5) as rasio
+            from fct_harga_harian group by all order by jenis_pasar_id
+            """
+        ),
         "kalender_publikasi": rows(
             """
             -- Apakah PIHPS terbit di hari libur, dan hari kerja mana yang tanpa data?
