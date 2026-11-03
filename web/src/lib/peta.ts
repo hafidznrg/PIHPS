@@ -7,6 +7,8 @@ export function urutkan(rows: PetaBaris[]): PetaBaris[] {
   return rows.filter((r) => r.is_aktif).sort((a, b) => a.harga - b.harga);
 }
 
+const kelas = (p: number | null) => (p == null ? "" : p > 0.5 ? "ubah--naik" : p < -0.5 ? "ubah--turun" : "");
+
 export function tabelPeta(rows: PetaBaris[], base: string): Raw {
   const aktif = urutkan(rows);
   if (aktif.length === 0) return html`<p class="kosong">Belum ada data provinsi untuk pilihan ini.</p>`;
@@ -15,13 +17,13 @@ export function tabelPeta(rows: PetaBaris[], base: string): Raw {
   <td class="angka">${i + 1}</td>
   <td><a href="${base}wilayah/${r.kode_wilayah}/">${r.nama}</a></td>
   <td class="angka">${rupiah(r.harga)}</td>
-  <td class="angka">${persen(r.selisih_pct_nasional)}</td>
-  <td class="angka">${persen(r.perubahan_pct_7h)}</td>
+  <td class="angka ${kelas(r.selisih_pct_nasional)}">${persen(r.selisih_pct_nasional)}</td>
+  <td class="angka ${kelas(r.perubahan_pct_7h)}">${persen(r.perubahan_pct_7h)}</td>
 </tr>`,
   );
   return html`<table>
   <caption class="sr-only">Harga per provinsi, dari termurah</caption>
-  <thead><tr><th class="angka">#</th><th>Provinsi</th><th class="angka">Harga</th><th class="angka">vs nasional</th><th class="angka">vs minggu lalu</th></tr></thead>
+  <thead><tr><th class="angka">#</th><th>Provinsi</th><th class="angka">Harga</th><th class="angka">vs nas.</th><th class="angka">1 mgg</th></tr></thead>
   <tbody>${body}</tbody>
 </table>`;
 }

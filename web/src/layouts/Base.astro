@@ -1,7 +1,7 @@
 ---
 import "../styles/global.css";
 import { getMeta } from "../lib/data";
-import { tanggalPanjang } from "../lib/format";
+import { tanggalPanjang, tanggalPendek } from "../lib/format";
 import { href } from "../lib/url";
 
 interface Props {
@@ -13,11 +13,11 @@ const { title, description, aktif } = Astro.props;
 const meta = getMeta();
 const fullTitle = title === "Harga Pangan Hari Ini" ? `${title} · Data PIHPS` : `${title} · Harga Pangan`;
 const canonical = new URL(Astro.url.pathname, Astro.site);
-const nav = [
-  { id: "beranda", label: "Harga Hari Ini", href: href() },
+const nav: { id: string; label: string; href: string; pre?: string; post?: string }[] = [
+  { id: "beranda", label: "Hari Ini", pre: "Harga\u00a0", href: href() },
   { id: "peta", label: "Peta", href: href("peta/") },
   { id: "komoditas", label: "Komoditas", href: href("komoditas/") },
-  { id: "jelajahi", label: "Jelajahi Data", href: href("jelajahi/") },
+  { id: "jelajahi", label: "Jelajahi", post: "\u00a0Data", href: href("jelajahi/") },
   { id: "tentang", label: "Tentang", href: href("tentang/") },
 ];
 ---
@@ -31,8 +31,8 @@ const nav = [
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href={href("favicon.svg")} type="image/svg+xml" />
-    <meta name="theme-color" content="#0b6b52" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#111311" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#15140f" media="(prefers-color-scheme: dark)" />
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
@@ -44,15 +44,11 @@ const nav = [
     <a class="lewati" href="#isi">Lewati ke konten</a>
     <header class="kepala">
       <div class="wadah kepala__isi">
-        <a class="merek" href={href()}>
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="currentColor" d="M12 2c-.6 3.4-3 5.4-3 9a3 3 0 0 0 6 0c0-3.6-2.4-5.6-3-9Zm-6 9.5c0 .5 0 1 .1 1.5H4a1 1 0 0 0-1 1.1 9 9 0 0 0 18 0A1 1 0 0 0 20 13h-2.1c.1-.5.1-1 .1-1.5h-2a4 4 0 0 1-8 0Z" />
-          </svg>
-          Harga Pangan
-        </a>
+        <a class="merek" href={href()}>Harga <em>Pangan</em></a>
+        <p class="kepala__tanggal">Data per <time datetime={meta.tanggal_acuan}>{tanggalPendek(meta.tanggal_acuan)}</time></p>
         <nav class="nav" aria-label="Navigasi utama">
           {nav.map((n) => (
-            <a href={n.href} aria-current={aktif === n.id ? "page" : undefined}>{n.label}</a>
+            <a href={n.href} aria-current={aktif === n.id ? "page" : undefined}>{n.pre && <span class="nav__panjang">{n.pre}</span>}{n.label}{n.post && <span class="nav__panjang">{n.post}</span>}</a>
           ))}
         </nav>
       </div>
@@ -62,11 +58,15 @@ const nav = [
     </main>
     <footer class="kaki">
       <div class="wadah kaki__isi">
+        <p class="kaki__merek">Harga <em>Pangan</em></p>
         <p>
-          Sumber data: <a href={meta.sumber.url} rel="noopener">{meta.sumber.nama}</a>.
-          Diolah ulang secara otomatis; situs ini tidak berafiliasi dengan Bank Indonesia.
+          Sumber data: <a href={meta.sumber.url} rel="noopener">{meta.sumber.nama}</a>. Diolah ulang secara otomatis setiap hari
+          kerja; situs ini tidak berafiliasi dengan Bank Indonesia.
         </p>
-        <p>Data harga per {tanggalPanjang(meta.tanggal_acuan)}. <a href={href("tentang/")}>Cara data diolah</a> · <a href="https://github.com/hafidznrg/PIHPS" rel="noopener">Kode sumber</a></p>
+        <p>
+          Data harga per {tanggalPanjang(meta.tanggal_acuan)}. <a href={href("tentang/")}>Cara data diolah</a> ·{" "}
+          <a href="https://github.com/hafidznrg/PIHPS" rel="noopener">Kode sumber</a>
+        </p>
       </div>
     </footer>
   </body>

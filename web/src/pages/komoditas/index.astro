@@ -1,43 +1,115 @@
 ---
 import Base from "../../layouts/Base.astro";
 import { getMeta, getWilayah, komoditasMap } from "../../lib/data";
-import { rupiah, satuan, tanggalPanjang } from "../../lib/format";
+import { persen, rupiah, satuan, tanggalPanjang } from "../../lib/format";
+import { sparkline } from "../../lib/render";
 import { href } from "../../lib/url";
 
 const meta = getMeta();
 const kmap = komoditasMap(meta);
 const nasional = getWilayah("nasional").pasar.find((p) => p.jenis_pasar_id === 1);
 const harga = new Map(nasional?.terkini.map((t) => [t.komoditas_id, t]) ?? []);
+const kelas = (p: number | null | undefined) => (p == null ? "" : p > 0.5 ? "ubah--naik" : p < -0.5 ? "ubah--turun" : "ubah--tetap");
 ---
 
 <Base title="Semua komoditas" description="Daftar 21 komoditas pangan strategis yang dipantau PIHPS Bank Indonesia beserta harga nasional terkini." aktif="komoditas">
   <section class="hero">
+    <p class="kicker">Indeks</p>
     <h1>Komoditas</h1>
     <p class="hero__ket">
-      {meta.kategori.length} kelompok, {meta.komoditas.filter((k) => k.level === 2).length} komoditas. Harga rata-rata nasional pasar tradisional,
-      {tanggalPanjang(meta.tanggal_acuan)}.
+      {meta.kategori.length} kelompok, {meta.komoditas.filter((k) => k.level === 2).length} komoditas. Harga rata-rata nasional pasar tradisional,{" "}
+      {tanggalPanjang(meta.tanggal_acuan)}, dan perubahannya dibanding seminggu, sebulan, dan setahun lalu.
     </p>
   </section>
-  {meta.kategori.map((kat) => (
-    <section class="kategori">
-      <h2 class="kategori__judul"><a href={href(`komoditas/${kat.id}/`)}>{kat.nama}</a></h2>
-      <div class="panel tabel-wadah">
-        <table>
-          <thead><tr><th>Komoditas</th><th class="angka">Harga</th></tr></thead>
-          <tbody>
-            {kat.komoditas.map((id) => {
-              const k = kmap.get(id);
-              const t = harga.get(id);
-              return k ? (
-                <tr>
-                  <td><a href={href(`komoditas/${id}/`)}>{k.nama}</a></td>
-                  <td class="angka">{t ? <>{rupiah(t.harga)}<span class="catatan">{satuan(k.satuan)}</span></> : "–"}</td>
-                </tr>
-              ) : null;
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  ))}
+
+  <div class="bagian tabel-wadah">
+    <table class="tabel-komoditas">
+      <thead>
+        <tr>
+          <th>Komoditas</th>
+          <th class="sel-spark" aria-hidden="true">90 hari</th>
+          <th class="angka">Harga</th>
+          <th class="angka">1 mgg</th>
+          <th class="angka sel-bln">1 bln</th>
+          <th class="angka">1 thn</th>
+        </tr>
+      </thead>
+      {meta.kategori.map((kat) => (
+        <tbody>
+          <tr class="baris-kelompok">
+            <th colspan="6" scope="colgroup"><a href={href(`komoditas/${kat.id}/`)}>{kat.nama}</a></th>
+          </tr>
+          {kat.komoditas.map((id) => {
+            const k = kmap.get(id);
+            const t = harga.get(id);
+            return k ? (
+              <tr data-arah={t?.arah_7h ?? "na"}>
+                <td><a href={href(`komoditas/${id}/`)}>{k.nama}</a></td>
+                <td class="sel-spark"><Fragment set:html={sparkline(nasional?.harian.harga[id] ?? []).value} /></td>
+                <td class="angka">{t ? <>{rupiah(t.harga)}<span class="catatan">{satuan(k.satuan)}</span></> : "–"}</td>
+                <td class={`angka ${kelas(t?.perubahan_pct_7h)}`}>{persen(t?.perubahan_pct_7h)}</td>
+                <td class={`angka sel-bln ${kelas(t?.perubahan_pct_30h)}`}>{persen(t?.perubahan_pct_30h)}</td>
+                <td class={`angka ${kelas(t?.perubahan_pct_1th)}`}>{persen(t?.perubahan_pct_1th)}</td>
+              </tr>
+            ) : null;
+          })}
+        </tbody>
+      ))}
+    </table>
+  </div>
+  <p class="catatan bagian">Ketuk nama kelompok untuk rata-rata kelompoknya. Merah: lebih mahal, hijau: lebih murah dibanding periode itu.</p>
 </Base>
+
+<style>
+  .tabel-komoditas .baris-kelompok th {
+    padding-top: 26px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--teks-redup);
+    border-bottom: 1px solid var(--garis-kuat);
+  }
+  .tabel-komoditas .baris-kelompok th a {
+    text-decoration: none;
+  }
+  .tabel-komoditas tbody:first-of-type .baris-kelompok th {
+    padding-top: 14px;
+  }
+  .tabel-komoditas .baris-kelompok:hover {
+    background: none;
+  }
+  .tabel-komoditas td a {
+    text-decoration: none;
+  }
+  .tabel-komoditas td a:hover {
+    text-decoration: underline;
+  }
+  .sel-spark {
+    width: 96px;
+  }
+  .sel-spark :global(.spark) {
+    width: 96px;
+    height: 24px;
+    display: block;
+  }
+  tr[data-arah="naik"] :global(.spark) {
+    stroke: var(--naik);
+  }
+  tr[data-arah="turun"] :global(.spark) {
+    stroke: var(--turun);
+  }
+  @media (max-width: 40rem) {
+    .sel-spark,
+    .sel-bln {
+      display: none;
+    }
+    .tabel-komoditas {
+      font-size: 0.86rem;
+    }
+    .tabel-komoditas td.angka {
+      font-size: 0.8rem;
+      padding-inline: 6px;
+    }
+  }
+</style>

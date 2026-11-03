@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badgeArah, gridKomoditas, kartu, ringkasan, sparkline, type RenderCtx } from "../../src/lib/render";
+import { badgeArah, gridKomoditas, kartu, penggerak, ringkasan, ringkasanHtml, sparkline, ubahRingkas, type RenderCtx } from "../../src/lib/render";
 import { keCsv } from "../../src/lib/duck";
 import { ringkasPeta, tabelPeta } from "../../src/lib/peta";
 import type { Komoditas, PasarWilayah, PetaBaris, Terkini } from "../../src/lib/types";
@@ -82,6 +82,19 @@ describe("grid & ringkasan", () => {
   };
   it("hanya menghitung komoditas level 2 yang aktif", () => {
     expect(ringkasan(pasar, ctx)).toEqual({ naik: 1, turun: 1, tetap: 0, total: 2 });
+  });
+  it("menyebut kenaikan & penurunan terbesar dalam kalimat ringkasan", () => {
+    const p = penggerak(pasar, ctx);
+    expect(p.naik?.komoditas_id).toBe("com_1");
+    expect(p.turun?.komoditas_id).toBe("com_2");
+    const out = ringkasanHtml(ringkasan(pasar, ctx), pasar, ctx).value;
+    expect(out).toContain("Kenaikan terbesar");
+    expect(out).toContain("Beras Medium</a>");
+    expect(out).toContain("−1,0%");
+  });
+  it("perubahan ringkas tetap punya kata untuk pembaca layar", () => {
+    expect(ubahRingkas(t()).value).toContain("Naik 2,8% dari minggu lalu");
+    expect(ubahRingkas(t({ arah_7h: null })).value).toContain("belum ada pembanding");
   });
   it("mengelompokkan per kategori sesuai urutan", () => {
     const out = gridKomoditas(pasar, ctx).value;

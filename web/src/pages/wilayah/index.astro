@@ -13,15 +13,16 @@ const kab = (kode: string): WilayahMeta[] =>
 
 <Base title="Daftar wilayah" description="Semua provinsi dan kabupaten/kota yang harganya dipantau PIHPS Bank Indonesia." aktif="wilayah">
   <section class="hero">
+    <p class="kicker">Indeks</p>
     <h1>Daftar wilayah</h1>
     <p class="hero__ket">{provinsi.length} provinsi dan {meta.wilayah.filter((w) => w.level === "kabkota").length} kabupaten/kota yang dipantau PIHPS.</p>
   </section>
-  <p class="bagian"><a href={wilayahHref("nasional")}>Nasional (rata-rata Indonesia)</a></p>
-  <div class="bagian" style="gap: 20px">
+  <p class="bagian"><a href={wilayahHref("nasional")}>Nasional (rata-rata Indonesia) →</a></p>
+  <div class="daftar-kolom">
     {provinsi.map((p) => (
       <section>
         <h2><a href={wilayahHref(p.kode)}>{p.nama}</a></h2>
-        <ul class="prosa" style="margin-top: 6px">
+        <ul>
           {kab(p.kode).map((k) => (
             <li>
               <a href={wilayahHref(k.kode)}>{k.nama}</a>

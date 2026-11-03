@@ -22,6 +22,7 @@ const pasarList = [...doc.pasar].sort((a, b) => urutan.indexOf(a.jenis_pasar_id)
 const awal = pasarList.find((p) => p.jenis_pasar_id === 1) ?? pasarList[0];
 const tanggalData = awal?.terkini.reduce((m, t) => (t.tanggal > m ? t.tanggal : m), "") || doc.tanggal_acuan;
 const judul = isNasional ? "Harga pangan hari ini" : `Harga pangan di ${w.nama}`;
+const kicker = isNasional ? "Rata-rata nasional" : w.level === "kabkota" ? `Kabupaten/kota · ${w.nama_provinsi ?? ""}` : "Provinsi";
 const lokasi = isNasional ? "rata-rata nasional" : w.level === "kabkota" ? `${w.nama}, ${w.nama_provinsi}` : w.nama;
 const komoditasGrafik = meta.komoditas.filter((k) => k.level === 2);
 const komoditasAwal = komoditasGrafik.find((k) => awal?.harian.harga[k.id]?.some((v) => v != null))?.id ?? "com_1";
@@ -37,21 +38,22 @@ const clientCtx = {
 ---
 
 <section class="hero">
+  <p class="kicker">{kicker}</p>
   <h1>{judul}</h1>
   <p class="hero__ket">
-    Harga per kilogram, {lokasi}. Data <time datetime={tanggalData}>{tanggalPanjang(tanggalData)}</time>,
-    dibandingkan dengan seminggu sebelumnya.
+    {isNasional ? "Harga rata-rata nasional" : `Harga rata-rata di ${lokasi}`} untuk {komoditasGrafik.length} bahan pangan pokok, data <time datetime={tanggalData}>{tanggalPanjang(tanggalData)}</time>.
+    Ketuk satu baris untuk melihat tren dan harga di provinsi lain.
   </p>
 </section>
 
-<div class="kontrol">
+<div class="kontrol kontrol--harga">
   <WilayahPicker wilayah={meta.wilayah} aktif={kode} />
 </div>
 
 {pasarList.length === 0 ? (
   <p class="kosong">Belum ada data harga untuk wilayah ini.</p>
 ) : (
-  <section class="bagian" id="harga" data-ctx={JSON.stringify(clientCtx)}>
+  <section class="bagian bagian--papan" id="harga" data-ctx={JSON.stringify(clientCtx)}>
     <div class="tab" role="tablist" aria-label="Jenis pasar">
       {pasarList.map((p) => (
         <button type="button" role="tab" id={`tab-${p.jenis_pasar_id}`} aria-controls="panel-harga" aria-selected={p === awal ? "true" : "false"} data-pasar={p.jenis_pasar_id}>
@@ -83,14 +85,14 @@ const clientCtx = {
           ))}
         </select>
       </div>
-      <div class="tab" role="tablist" aria-label="Rentang waktu">
+      <div class="tab tab--kecil" role="tablist" aria-label="Rentang waktu">
         <button type="button" role="tab" aria-selected="true" data-rentang="harian">3 bulan</button>
-        <button type="button" role="tab" aria-selected="false" data-rentang="bulanan">Semua (bulanan)</button>
+        <button type="button" role="tab" aria-selected="false" data-rentang="bulanan">Semua, bulanan</button>
       </div>
     </div>
     <div id="grafik-wilayah" class="grafik grafik-memuat" role="img" aria-label="Grafik harga komoditas terpilih per jenis pasar">Memuat grafik…</div>
     <p class="catatan">
-      Garis per jenis pasar. Nilai yang terdeteksi sebagai salah input di sumber tidak ditampilkan.{" "}
+      Satu garis per jenis pasar. Nilai yang terdeteksi sebagai salah input di sumber tidak ditampilkan.{" "}
       <a href={href("tentang/#metode")}>Metode</a>
     </p>
   </section>
@@ -156,7 +158,7 @@ const clientCtx = {
     let rentang: "harian" | "bulanan" = "harian";
 
     async function gambar() {
-      const [{ mount, baseOption, rp, rpRingkas, warnaPasar, zoom }, doc] = await Promise.all([import("../lib/charts"), loadDoc()]);
+      const [{ mount, baseOption, gayaGaris, rp, rpRingkas, warnaPasar, zoom }, doc] = await Promise.all([import("../lib/charts"), loadDoc()]);
       el.classList.remove("grafik-memuat");
       el.textContent = "";
       const chart = mount(el);
@@ -166,11 +168,9 @@ const clientCtx = {
         const s = p[rentang];
         const xs = rentang === "harian" ? (s as WilayahDoc["pasar"][number]["harian"]).tanggal : (s as WilayahDoc["pasar"][number]["bulanan"]).bulan;
         return {
+          ...gayaGaris,
           name: c.pasar[String(p.jenis_pasar_id)] ?? String(p.jenis_pasar_id),
-          type: "line" as const,
           color: warnaPasar(p.jenis_pasar_id),
-          showSymbol: false,
-          connectNulls: false,
           data: xs.map((x, i) => [x, s.harga[id]?.[i] ?? null]),
         };
       }).filter((s) => s.data.some((d) => d[1] != null));
