@@ -15,7 +15,11 @@ export interface RenderCtx {
 const ARAH_LABEL: Record<Arah, string> = { naik: "Naik", turun: "Turun", tetap: "Stabil" };
 const ARAH_IKON: Record<Arah, string> = { naik: "▲", turun: "▼", tetap: "–" };
 
-/** Garis kecil 90 hari. Nilai null memutus garis; titik terakhir ditandai. */
+/**
+ * Garis kecil 90 hari. Nilai null memutus garis; titik terakhir ditandai.
+ * Koordinat dibulatkan pada resolusi 2x lalu ditulis relatif ("l dx dy") supaya HTML ringkas:
+ * satu halaman memuat ±100 sparkline (4 jenis pasar).
+ */
 export function sparkline(values: (number | null)[], { width = 120, height = 32 } = {}): Raw {
   const pts = values.map((v, i) => [i, v] as const).filter((p): p is readonly [number, number] => p[1] != null);
   if (pts.length < 2) return raw("");
@@ -24,17 +28,29 @@ export function sparkline(values: (number | null)[], { width = 120, height = 32 
   const max = Math.max(...ys);
   const span = max - min || 1;
   const n = Math.max(values.length - 1, 1);
-  const pad = 3;
-  const x = (i: number) => ((i / n) * (width - 2 * pad) + pad).toFixed(1);
-  const y = (v: number) => (height - pad - ((v - min) / span) * (height - 2 * pad)).toFixed(1);
+  const W = width * 2;
+  const H = height * 2;
+  const pad = 6;
+  const x = (i: number) => Math.round((i / n) * (W - 2 * pad) + pad);
+  const y = (v: number) => Math.round(H - pad - ((v - min) / span) * (H - 2 * pad));
   let d = "";
   let prev = -2;
+  let px = 0;
+  let py = 0;
   for (const [i, v] of pts) {
-    d += `${i === prev + 1 ? "L" : "M"}${x(i)} ${y(v)}`;
+    const cx = x(i);
+    const cy = y(v);
+    if (i === prev + 1) {
+      const dx = cx - px;
+      const dy = cy - py;
+      d += `l${dx}${dy < 0 ? "" : " "}${dy}`;
+    } else d += `M${cx} ${cy}`;
     prev = i;
+    px = cx;
+    py = cy;
   }
   const last = pts[pts.length - 1]!;
-  return html`<svg class="spark" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="${d}" /><path class="spark__titik" d="M${x(last[0])} ${y(last[1])}h0" /></svg>`;
+  return html`<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="${d}" /><path class="spark__titik" d="M${x(last[0])} ${y(last[1])}h0" /></svg>`;
 }
 
 /** Perubahan seminggu dengan kata lengkap (halaman komoditas). */
@@ -110,22 +126,6 @@ export function penggerak(pasar: PasarWilayah, ctx: RenderCtx): { naik: Terkini 
   return { naik, turun };
 }
 
-/** Ringkasan sebagai kalimat pembuka: hitungan naik/turun + penggerak terbesar. */
-export function ringkasanHtml(r: Ringkasan, pasar?: PasarWilayah, ctx?: RenderCtx): Raw {
-  if (r.total === 0) return html`<div class="ringkasan"><p class="ringkasan__teks">Belum ada pembanding minggu lalu.</p></div>`;
-  const p = pasar && ctx ? penggerak(pasar, ctx) : { naik: undefined, turun: undefined };
-  const nama = (t: Terkini) => ctx?.komoditas.get(t.komoditas_id)?.nama ?? t.komoditas_id;
-  const tautan = (t: Terkini) => html`<a href="${ctx?.base ?? "/"}komoditas/${t.komoditas_id}/">${nama(t)}</a>`;
-  const kalimat: Raw[] = [];
-  if (p.naik) kalimat.push(html`Kenaikan terbesar ${tautan(p.naik)} <span class="ubah--naik">+${persen(p.naik.perubahan_pct_7h, { tanda: false })}</span>`);
-  if (p.turun) kalimat.push(html`penurunan terbesar ${tautan(p.turun)} <span class="ubah--turun">−${persen(p.turun.perubahan_pct_7h, { tanda: false })}</span>`);
-  const kedua = kalimat.length ? html` ${kalimat[0]}${kalimat[1] ? html`; ${kalimat[1]}` : ""}.` : raw("");
-  return html`<div class="ringkasan" aria-label="Ringkasan perubahan dari minggu lalu">
-  <p class="ringkasan__angka"><span class="ubah--naik"><strong>${r.naik}</strong> naik</span><span class="ubah--turun"><strong>${r.turun}</strong> turun</span><span class="ubah--tetap"><strong>${r.tetap}</strong> stabil</span></p>
-  <p class="ringkasan__teks">Dibanding seminggu lalu, dari ${r.total} komoditas.${kedua}</p>
-</div>`;
-}
-
 /** Semua baris komoditas (level 2) dikelompokkan per kategori, urut sesuai PIHPS. */
 export function gridKomoditas(pasar: PasarWilayah, ctx: RenderCtx): Raw {
   const byId = new Map(pasar.terkini.map((t) => [t.komoditas_id, t]));
@@ -134,8 +134,10 @@ export function gridKomoditas(pasar: PasarWilayah, ctx: RenderCtx): Raw {
       const items = kat.komoditas.map((id) => byId.get(id)).filter((t): t is Terkini => t != null);
       if (items.length === 0) return "";
       const rows = items.map((t) => kartu(t, pasar.harian.harga[t.komoditas_id] ?? [], ctx));
-      return html`<section class="kategori" aria-labelledby="kat-${kat.id}">
-  <h2 class="kategori__judul" id="kat-${kat.id}">${kat.nama}</h2>
+      // id unik per jenis pasar: keempat panel pasar ada bersamaan di satu halaman
+      const id = `kat-p${pasar.jenis_pasar_id}-${kat.id}`;
+      return html`<section class="kategori" aria-labelledby="${id}">
+  <h3 class="kategori__judul" id="${id}">${kat.nama}</h3>
   <ul class="papan">${rows}</ul>
 </section>`;
     })
@@ -146,6 +148,127 @@ export function gridKomoditas(pasar: PasarWilayah, ctx: RenderCtx): Raw {
   return html`<div class="papan-kolom">${sections}</div>`;
 }
 
-export function panelPasar(pasar: PasarWilayah, ctx: RenderCtx): Raw {
-  return html`${ringkasanHtml(ringkasan(pasar, ctx), pasar, ctx)}<p class="papan__legenda">Harga per kilogram. Garis kecil: 90 hari terakhir. Persen: perubahan dari minggu lalu.</p>${gridKomoditas(pasar, ctx)}`;
+// ------------------------------------------------------------- beranda: sorotan
+// Hierarki beranda: (1) judul = satu insight terkuat, (2) kartu sorotan, (3) papan lengkap.
+
+/** Judul insight: perubahan mingguan terbesar (mutlak) di antara komoditas aktif. */
+export function judulInsight(pasar: PasarWilayah, ctx: RenderCtx): string {
+  const { naik, turun } = penggerak(pasar, ctx);
+  const kandidat = [naik, turun].filter((t): t is Terkini => t != null);
+  const t = kandidat.sort((a, b) => Math.abs(b.perubahan_pct_7h!) - Math.abs(a.perubahan_pct_7h!))[0];
+  if (!t) return "Harga pangan stabil dibanding minggu lalu";
+  const nama = ctx.komoditas.get(t.komoditas_id)?.nama ?? t.komoditas_id;
+  return `${nama} ${t.arah_7h === "naik" ? "naik" : "turun"} ${persen(Math.abs(t.perubahan_pct_7h!), { tanda: false })} dalam seminggu`;
+}
+
+/** "4 naik · 5 turun · 12 stabil" — kalimat pendamping judul. */
+export function hitungHtml(r: Ringkasan): Raw {
+  if (r.total === 0) return html`<p class="hitung">Belum ada pembanding minggu lalu.</p>`;
+  return html`<p class="hitung" aria-label="Dibanding minggu lalu: ${String(r.naik)} naik, ${String(r.turun)} turun, ${String(r.tetap)} stabil">
+  <span class="hitung__n ubah--naik"><strong>${String(r.naik)}</strong> naik</span>
+  <span class="hitung__n ubah--turun"><strong>${String(r.turun)}</strong> turun</span>
+  <span class="hitung__n ubah--tetap"><strong>${String(r.tetap)}</strong> stabil</span>
+  <span class="hitung__ket">dari ${String(r.total)} komoditas, dibanding minggu lalu</span>
+</p>`;
+}
+
+export interface Timpang {
+  komoditas_id: string;
+  murah: { nama: string; harga: number };
+  mahal: { nama: string; harga: number };
+  selisih: number; // % termahal di atas termurah
+  href: string;
+}
+
+interface KartuSorot {
+  label: string;
+  t: Terkini;
+}
+
+function kartuSorot({ label, t }: KartuSorot, seri: (number | null)[], ctx: RenderCtx): Raw {
+  const k = ctx.komoditas.get(t.komoditas_id);
+  const arah = t.arah_7h ?? "na";
+  const ubah =
+    !t.arah_7h || t.perubahan_pct_7h == null
+      ? html`<span class="ubah ubah--na">Belum ada pembanding</span>`
+      : t.arah_7h === "tetap"
+        ? html`<span class="ubah ubah--tetap">Stabil dari minggu lalu</span>`
+        : html`<span class="ubah ubah--${t.arah_7h}"><span aria-hidden="true">${ARAH_IKON[t.arah_7h]} </span>${ARAH_LABEL[t.arah_7h]} ${persen(Math.abs(t.perubahan_pct_7h), { tanda: false })} <span class="sorot__ket">dari minggu lalu</span></span>`;
+  return html`<li class="sorot" data-arah="${arah}">
+  <a class="sorot__tautan" href="${ctx.base}komoditas/${t.komoditas_id}/">
+    <span class="sorot__label">${label}</span>
+    <span class="sorot__nama">${k?.nama ?? t.komoditas_id}</span>
+    <span class="sorot__harga"><data value="${t.harga}">${rupiah(t.harga)}</data><span class="kartu__satuan">${satuan(k?.satuan)}</span></span>
+    ${ubah}
+    ${sparkline(seri, { width: 200, height: 40 })}
+  </a>
+</li>`;
+}
+
+function kartuTimpang(t: Timpang, ctx: RenderCtx): Raw {
+  const k = ctx.komoditas.get(t.komoditas_id);
+  return html`<li class="sorot sorot--timpang">
+  <a class="sorot__tautan" href="${t.href}">
+    <span class="sorot__label">Paling timpang antarprovinsi</span>
+    <span class="sorot__nama">${k?.nama ?? t.komoditas_id}</span>
+    <span class="sorot__harga sorot__harga--rentang">${rupiah(t.murah.harga)}<span class="sorot__sd">–</span>${rupiah(t.mahal.harga)}</span>
+    <span class="ubah">Termahal ${persen(t.selisih, { tanda: false })} di atas termurah</span>
+    <span class="sorot__provinsi">${t.murah.nama} → ${t.mahal.nama} · lihat peta</span>
+  </a>
+</li>`;
+}
+
+/**
+ * Kartu sorotan: kenaikan & penurunan terbesar, harga beras (acuan), dan satu sorotan wilayah
+ * (nasional: komoditas paling timpang antarprovinsi; daerah: paling jauh di atas nasional).
+ */
+export function sorotanHtml(pasar: PasarWilayah, ctx: RenderCtx, timpang: Timpang[] = []): Raw {
+  const aktif = aktifLevel2(pasar, ctx);
+  const { naik, turun } = penggerak(pasar, ctx);
+  const dipakai = new Set<string>();
+  const kartuList: KartuSorot[] = [];
+  const tambah = (label: string, t: Terkini | undefined) => {
+    if (!t || dipakai.has(t.komoditas_id)) return;
+    dipakai.add(t.komoditas_id);
+    kartuList.push({ label, t });
+  };
+  tambah("Naik paling tinggi", naik);
+  tambah("Turun paling dalam", turun);
+  const beras = aktif.find((t) => t.komoditas_id === BERAS_ACUAN) ?? aktif.find((t) => ctx.komoditas.get(t.komoditas_id)?.nama.startsWith("Beras"));
+  tambah("Harga beras", beras);
+  if (!ctx.isNasional) {
+    const atas = aktif
+      .filter((t) => t.selisih_pct_nasional != null && t.selisih_pct_nasional >= 1 && !dipakai.has(t.komoditas_id))
+      .sort((a, b) => b.selisih_pct_nasional! - a.selisih_pct_nasional!)[0];
+    if (atas) {
+      dipakai.add(atas.komoditas_id);
+      kartuList.push({ label: `${persen(atas.selisih_pct_nasional, { tanda: false })} di atas nasional`, t: atas });
+    }
+  }
+  // isi sampai 3 kartu harga dengan perubahan sebulan terbesar bila sorotan di atas kosong
+  const sebulan = aktif
+    .filter((t) => t.perubahan_pct_30h != null && !dipakai.has(t.komoditas_id))
+    .sort((a, b) => Math.abs(b.perubahan_pct_30h!) - Math.abs(a.perubahan_pct_30h!));
+  while (kartuList.length < 3 && sebulan.length) tambah("Paling bergerak sebulan", sebulan.shift());
+  const items = kartuList.map((k) => kartuSorot(k, pasar.harian.harga[k.t.komoditas_id] ?? [], ctx));
+  // kandidat timpang terbesar yang belum tampil di kartu lain (hindari komoditas berulang)
+  const tp = timpang.find((t) => !dipakai.has(t.komoditas_id)) ?? timpang[0];
+  if (ctx.isNasional && tp) items.push(kartuTimpang(tp, ctx));
+  if (items.length === 0) return raw("");
+  return html`<ul class="sorotan" aria-label="Sorotan">${items}</ul>`;
+}
+
+/** Komoditas acuan untuk kartu "Harga beras" (Beras Kualitas Medium I). */
+export const BERAS_ACUAN = "com_3";
+
+/** Satu panel jenis pasar di beranda/wilayah: hitungan, sorotan, papan lengkap. */
+export function panelBeranda(pasar: PasarWilayah, ctx: RenderCtx, timpang: Timpang[] = []): Raw {
+  return html`${hitungHtml(ringkasan(pasar, ctx))}${sorotanHtml(pasar, ctx, timpang)}
+<section class="papan-bagian" aria-label="Semua komoditas">
+  <div class="papan-bagian__kepala">
+    <h2 class="label">Semua komoditas</h2>
+    <p class="papan__legenda">Garis: 90 hari terakhir · %: dari minggu lalu</p>
+  </div>
+  ${gridKomoditas(pasar, ctx)}
+</section>`;
 }

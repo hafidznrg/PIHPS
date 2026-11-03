@@ -3,8 +3,9 @@
    Mobile-first, token warna terang/gelap. Warna arah harga mengikuti sudut pandang pembeli:
    naik = merah, turun = hijau; arah selalu juga ditulis dengan ikon/kata. */
 
-@import "@fontsource-variable/newsreader/opsz.css";
-@import "@fontsource-variable/newsreader/opsz-italic.css";
+/* Newsreader sumbu "wght" saja (±58 KB) — bukan "opsz" (±132 KB); italic hanya untuk logo. */
+@import "@fontsource-variable/newsreader/wght.css";
+@import "@fontsource-variable/newsreader/wght-italic.css";
 @import "@fontsource/ibm-plex-sans/400.css";
 @import "@fontsource/ibm-plex-sans/500.css";
 @import "@fontsource/ibm-plex-sans/600.css";
@@ -42,10 +43,15 @@
   --seri-3: #c27c0e;
   --seri-4: #96402e;
 
-  --peta-1: #ede5d0;
-  --peta-tengah: #9db58f;
-  --peta-2: #1d4a37;
-  --peta-kosong: #e3dccb;
+  /* Peta: diverging terhadap rata-rata nasional. Biru = lebih murah, merah = lebih mahal,
+     abu hangat = setara. Langkah "jauh" paling kontras terhadap latar (mencolok). */
+  --k-jm: #24578a;
+  --k-m: #8fb5d8;
+  --k-s: #d3cbb9;
+  --k-h: #efa883;
+  --k-jh: #a8361f;
+  --k-na: #f3efe6;
+  --k-arsir: #cfc6b3;
 
   --radius: 4px;
   --lebar: 76rem;
@@ -78,10 +84,13 @@
     --seri-3: #e3b14d;
     --seri-4: #e78f78;
 
-    --peta-1: #2c2a22;
-    --peta-tengah: #4f7a5f;
-    --peta-2: #9fdcb9;
-    --peta-kosong: #24221b;
+    --k-jm: #86b9ec;
+    --k-m: #3b6189;
+    --k-s: #48443a;
+    --k-h: #8f533a;
+    --k-jh: #f2836a;
+    --k-na: #15140f;
+    --k-arsir: #38342b;
   }
 }
 
@@ -119,7 +128,6 @@ a:hover {
 }
 .prosa a,
 .catatan a,
-.ringkasan a,
 .hero__ket a {
   color: var(--aksen);
 }
@@ -459,16 +467,6 @@ textarea:hover {
   resize: vertical;
 }
 
-.kontrol--harga {
-  margin-top: 22px;
-}
-.kontrol--harga .isian {
-  flex: 0 1 26rem;
-}
-.bagian--papan {
-  margin-top: 28px;
-  gap: 0;
-}
 
 /* Tab (jenis pasar, rentang waktu): teks bergaris bawah, bukan pil */
 .tab {
@@ -543,49 +541,6 @@ p.ubah--na {
 }
 .ubah__ket {
   opacity: 0.85;
-}
-
-/* ----------------------------------------------- ringkasan pembuka (lede) */
-.ringkasan {
-  display: grid;
-  gap: 8px 32px;
-  padding-block: 18px;
-  border-bottom: 1px solid var(--garis);
-}
-.ringkasan__angka {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 22px;
-  font-size: 0.92rem;
-}
-.ringkasan__angka strong {
-  font-family: var(--font-judul);
-  font-size: 2.3rem;
-  font-weight: 500;
-  line-height: 1;
-  margin-right: 6px;
-  letter-spacing: -0.02em;
-  font-variant-numeric: lining-nums;
-}
-.ringkasan__teks {
-  font-family: var(--font-judul);
-  font-size: 1.15rem;
-  line-height: 1.45;
-  max-width: 38rem;
-}
-.ringkasan__teks a {
-  color: inherit;
-}
-.ringkasan__teks span {
-  font-family: var(--font-angka);
-  font-size: 0.9em;
-  white-space: nowrap;
-}
-@media (min-width: 52rem) {
-  .ringkasan {
-    grid-template-columns: auto 1fr;
-    align-items: center;
-  }
 }
 
 /* --------------------------------------------------- papan harga (baris) */
@@ -1137,4 +1092,579 @@ code {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ------------------------------------------- bilah saring (filter ringkas) */
+/* Pilihan wilayah/komoditas/pasar dalam satu baris; <select> native tetap ramah HP. */
+.saring {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.saring__isian {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: block;
+}
+.saring__isian--lebar {
+  flex: 1 1 10rem;
+}
+.saring select {
+  min-height: 40px;
+  padding-block: 7px;
+  font-size: 0.94rem;
+  font-weight: 500;
+  background-color: transparent;
+  border-color: var(--garis);
+}
+@media (min-width: 40rem) {
+  .saring__isian {
+    flex: 0 1 auto;
+  }
+  .saring__isian--lebar {
+    flex: 0 1 22rem;
+  }
+}
+.hero--ringkas {
+  padding-block: 24px 0;
+  gap: 6px;
+}
+
+/* ---------------------------------------------------------------- peta */
+.bagian--peta {
+  margin-top: 18px;
+  gap: 18px;
+}
+.k-jm { --k: var(--k-jm); }
+.k-m { --k: var(--k-m); }
+.k-s { --k: var(--k-s); }
+.k-h { --k: var(--k-h); }
+.k-jh { --k: var(--k-jh); }
+.k-na { --k: var(--k-na); }
+
+/* Tiga angka utama di atas peta */
+.sorot-peta-baris {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--garis-kuat);
+  border-bottom: 1px solid var(--garis);
+}
+.sorot-peta {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 12px 14px 14px 0;
+  min-width: 0;
+}
+.sorot-peta + .sorot-peta {
+  border-left: 1px solid var(--garis);
+  padding-left: 14px;
+}
+.sorot-peta--nas {
+  grid-column: 1 / -1;
+  border-left: 0 !important;
+  padding-left: 0 !important;
+  border-top: 1px solid var(--garis);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  padding-block: 10px;
+}
+.sorot-peta--nas .sorot-peta__angka {
+  font-size: 1.05rem;
+}
+.sorot-peta--nas .sorot-peta__ket {
+  flex-basis: 100%;
+}
+.sorot-peta__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--teks-redup);
+}
+.sorot-peta__nama {
+  font-family: var(--font-judul);
+  font-size: clamp(1.15rem, 1rem + 0.8vw, 1.55rem);
+  line-height: 1.15;
+  font-weight: 500;
+}
+.sorot-peta__angka {
+  font-family: var(--font-angka);
+  font-size: clamp(1.15rem, 1rem + 0.9vw, 1.6rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sorot-peta__ket {
+  font-size: 0.84rem;
+  color: var(--teks-redup);
+}
+.sorot-peta--mahal .sorot-peta__ket {
+  color: var(--naik);
+}
+.sorot-peta--murah .sorot-peta__ket {
+  color: var(--turun);
+}
+@media (min-width: 52rem) {
+  .sorot-peta-baris {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .sorot-peta--nas {
+    grid-column: auto;
+    border-top: 0;
+    border-left: 1px solid var(--garis) !important;
+    padding: 12px 0 14px 14px !important;
+    display: grid;
+  }
+  .sorot-peta--nas .sorot-peta__angka {
+    font-size: clamp(1.15rem, 1rem + 0.9vw, 1.6rem);
+  }
+}
+/* Penanda cincin: sama di kartu sorotan dan di peta */
+.penanda {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--teks);
+  background: var(--latar);
+  flex: none;
+}
+
+.peta__tata {
+  display: grid;
+  gap: 20px;
+}
+.peta__tata > * {
+  min-width: 0;
+}
+.peta__peta {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.peta-svg {
+  position: relative;
+  /* ruang untuk label penanda di provinsi paling utara/selatan */
+  padding-block: 18px;
+}
+.peta-svg svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  touch-action: manipulation;
+}
+.peta-svg--memuat svg {
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+.prov {
+  fill: var(--k);
+  stroke: var(--latar);
+  stroke-width: 0.6px;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.prov.k-na {
+  fill: url(#arsir);
+}
+.arsir__latar {
+  fill: var(--k-na);
+}
+.arsir__garis {
+  stroke: var(--k-arsir);
+  stroke-width: 1.5;
+}
+.prov--aktif {
+  stroke: var(--teks);
+  stroke-width: 1.6px;
+}
+.peta-svg[data-sorot-kelas="jm"] .prov:not(.k-jm),
+.peta-svg[data-sorot-kelas="m"] .prov:not(.k-m),
+.peta-svg[data-sorot-kelas="s"] .prov:not(.k-s),
+.peta-svg[data-sorot-kelas="h"] .prov:not(.k-h),
+.peta-svg[data-sorot-kelas="jh"] .prov:not(.k-jh) {
+  opacity: 0.18;
+}
+/* Penanda termahal/termurah langsung di peta (HTML di atas SVG, ukuran teks tetap) */
+.peta-penanda {
+  position: absolute;
+  inset: 18px 0;
+  pointer-events: none;
+}
+.penanda-peta {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.penanda-peta::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--teks);
+  background: var(--latar);
+  box-sizing: border-box;
+}
+.penanda-peta__teks {
+  position: absolute;
+  bottom: 9px;
+  left: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--teks);
+  color: var(--latar);
+}
+/* termurah selalu di bawah titiknya supaya tidak bertabrakan dengan label termahal */
+.penanda-peta--murah .penanda-peta__teks {
+  bottom: auto;
+  top: 9px;
+}
+.penanda-peta[data-sisi="kiri"] .penanda-peta__teks {
+  transform: translateX(-12px);
+}
+.penanda-peta[data-sisi="kanan"] .penanda-peta__teks {
+  transform: translateX(calc(-100% + 12px));
+}
+.penanda-peta__nama {
+  display: none;
+  font-weight: 400;
+}
+@media (min-width: 40rem) {
+  .penanda-peta__nama {
+    display: inline;
+  }
+}
+.peta-tip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 1px;
+  min-width: 10rem;
+  max-width: 15rem;
+  padding: 8px 10px;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  background: var(--permukaan);
+  border: 1px solid var(--garis-kuat);
+  border-radius: var(--radius);
+  pointer-events: none;
+}
+.peta-tip[hidden] {
+  display: none;
+}
+.peta-tip span {
+  font-family: var(--font-angka);
+  font-size: 0.8rem;
+}
+
+/* Legenda berjenjang */
+.legenda__judul {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--teks-redup);
+  margin-bottom: 6px;
+}
+.legenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(4, auto);
+  gap: 0 2px;
+}
+.legenda__item {
+  display: grid;
+  /* subgrid: label yang terbungkus dua baris tidak menggeser baris angka di kolom lain */
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  gap: 2px;
+  font-size: 0.74rem;
+  line-height: 1.25;
+  cursor: default;
+}
+.legenda__warna {
+  display: block;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--k);
+}
+.legenda__label {
+  font-weight: 600;
+  margin-top: 3px;
+}
+.legenda__rentang,
+.legenda__n {
+  color: var(--teks-redup);
+}
+.legenda__n {
+  font-family: var(--font-angka);
+}
+.legenda__na {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.74rem;
+  color: var(--teks-redup);
+}
+.legenda__na .legenda__warna {
+  width: 18px;
+  background: repeating-linear-gradient(45deg, var(--k-na) 0 3px, var(--k-arsir) 3px 4.5px);
+  outline: 1px solid var(--garis);
+}
+@media (max-width: 30rem) {
+  .legenda__rentang {
+    display: none;
+  }
+}
+
+/* Tabel peta */
+.swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 6px;
+  background: var(--k);
+  vertical-align: 0;
+}
+.swatch.k-na {
+  background: transparent;
+}
+.tabel-peta tr.aktif {
+  background: var(--sorot);
+}
+.tabel-peta__no {
+  color: var(--teks-redup);
+}
+@media (max-width: 30rem) {
+  .tabel-peta__mgg {
+    display: none;
+  }
+}
+/* HP: tabel diringkas jadi 10 teratas + tombol "tampilkan semua" (hanya bila JS aktif) */
+.tabel-buka {
+  margin-top: 10px;
+  width: 100%;
+}
+@media (max-width: 63.99rem) {
+  .peta__tabel--ringkas tbody tr:nth-child(n + 11) {
+    display: none;
+  }
+}
+@media (min-width: 64rem) {
+  .tabel-buka {
+    display: none;
+  }
+  .peta__peta {
+    position: sticky;
+    top: 16px;
+  }
+  .peta__tata {
+    grid-template-columns: minmax(0, 1fr) 24rem;
+    align-items: start;
+    gap: 32px;
+  }
+  .peta__tabel {
+    max-height: 560px;
+    overflow-y: auto;
+  }
+  .peta__tabel thead th {
+    position: sticky;
+    top: 0;
+    background: var(--latar);
+  }
+}
+
+/* ------------------------------------------------ beranda: hierarki fokus */
+.saring--atas {
+  margin-top: 18px;
+}
+.hero--insight {
+  padding-block: 22px 0;
+  gap: 8px;
+}
+.hero--insight h1 {
+  font-size: clamp(1.95rem, 1.35rem + 2.6vw, 3.25rem);
+  line-height: 1.08;
+  max-width: 24ch;
+}
+.panel-pasar[hidden] {
+  display: none;
+}
+/* Hitungan naik/turun/stabil di bawah judul */
+.hitung {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 16px;
+  margin-top: 12px;
+  font-size: 0.92rem;
+}
+.hitung__n strong {
+  font-family: var(--font-judul);
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin-right: 4px;
+  font-variant-numeric: lining-nums;
+}
+.hitung__ket {
+  color: var(--teks-redup);
+  font-size: 0.86rem;
+}
+@media (max-width: 30rem) {
+  .hitung__ket {
+    flex-basis: 100%;
+  }
+}
+
+/* Kartu sorotan (fokus utama setelah judul) */
+.sorotan {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--garis-kuat);
+}
+.sorot {
+  min-width: 0;
+  border-bottom: 1px solid var(--garis);
+}
+.sorot:nth-child(odd) {
+  border-right: 1px solid var(--garis);
+}
+.sorot__tautan {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  height: 100%;
+  padding: 12px 12px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+.sorot:nth-child(odd) .sorot__tautan {
+  padding-left: 0;
+}
+.sorot__tautan:hover {
+  background: var(--sorot);
+}
+.sorot__tautan:hover .sorot__nama {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.sorot__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--teks-redup);
+}
+.sorot__nama {
+  font-family: var(--font-judul);
+  font-size: 1.08rem;
+  line-height: 1.2;
+  font-weight: 500;
+}
+.sorot__harga {
+  font-family: var(--font-angka);
+  font-size: clamp(1.1rem, 0.95rem + 0.9vw, 1.55rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-top: 4px;
+}
+.sorot__harga--rentang {
+  font-size: clamp(0.98rem, 0.88rem + 0.6vw, 1.25rem);
+  white-space: normal;
+}
+.sorot__sd {
+  margin-inline: 3px;
+  color: var(--teks-redup);
+}
+.sorot .ubah {
+  font-size: 0.84rem;
+}
+.sorot__ket {
+  color: var(--teks-redup);
+}
+.sorot__provinsi {
+  font-size: 0.8rem;
+  color: var(--teks-redup);
+}
+.sorot .spark {
+  height: 36px;
+  margin-top: 6px;
+}
+.sorot[data-arah="naik"] .spark {
+  stroke: var(--naik);
+}
+.sorot[data-arah="turun"] .spark {
+  stroke: var(--turun);
+}
+@media (max-width: 30rem) {
+  .sorot__ket {
+    display: none;
+  }
+}
+@media (min-width: 52rem) {
+  .sorotan {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .sorot {
+    border-right: 1px solid var(--garis);
+  }
+  .sorot:last-child {
+    border-right: 0;
+  }
+  .sorot__tautan,
+  .sorot:nth-child(odd) .sorot__tautan {
+    padding: 14px 18px 16px;
+  }
+  .sorot:first-child .sorot__tautan {
+    padding-left: 0;
+  }
+}
+
+/* Papan semua komoditas (fokus sekunder) */
+.papan-bagian {
+  margin-top: 34px;
+}
+.papan-bagian__kepala {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 16px;
+  padding-bottom: 6px;
+}
+.papan-bagian__kepala .papan__legenda {
+  padding-top: 0;
+}
+.kartu[data-arah="tetap"] .kartu__harga,
+.kartu[data-arah="na"] .kartu__harga {
+  font-weight: 400;
 }
