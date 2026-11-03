@@ -88,6 +88,15 @@ jobs:
           mkdir -p layar
           npx astro preview --port 4321 & sleep 5
           BASE_URL="http://localhost:4321${SITE_BASE}/" node scripts/tangkap-layar.cjs
+          for f in dist/index.html dist/peta/index.html dist/data/view/wilayah/nasional/harian.json dist/data/view/wilayah/nasional/bulanan.json public/data/serving/wilayah/nasional.json public/data/serving/peta/pasar_tradisional.json; do
+            echo "UKURAN $f raw=$(wc -c < $f) gz=$(gzip -c $f | wc -c)"
+          done
+          ls -la dist/_astro | grep -E "charts|newsreader-latin-wght|\.js$" | awk '{print "ASET", $5, $9}'
+          grep -o '<h1[^>]*>[^<]*' dist/index.html | sed 's/^/TEKS beranda h1: /'
+          grep -o 'data-judul="[^"]*"' dist/index.html | sed 's/^/TEKS /'
+          grep -o 'class="sorot__label">[^<]*</span>[^<]*<span class="sorot__nama">[^<]*' dist/index.html | sed 's/<[^>]*>/ | /g; s/^/TEKS sorot: /' | head -16
+          grep -o 'id="peta-ringkas">[^<]*' dist/peta/index.html | sed 's/^/TEKS peta: /'
+          for f in layar/kecil-*.jpg; do echo "GAMBAR $f"; base64 -w0 "$f"; echo; echo "AKHIR $f"; done
       - uses: actions/upload-artifact@v4
         if: github.ref != 'refs/heads/main'
         with:
