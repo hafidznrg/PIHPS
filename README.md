@@ -50,8 +50,10 @@ uv run python -m pihps.extract --start 2017-06-01 --end 2017-12-31 \
 
 Exit code 1 bila ada wilayah yang gagal, silent failure (respons nasional pasar tradisional
 kosong, atau (gagal + kosong) / request harga > 10%), atau manifest gagal ditulis; 2 untuk
-argumen tidak valid. Workflow [`extract`](.github/workflows/extract.yml) berjalan setiap hari
-pukul 15.00 WIB (08:00 UTC) dan selalu mengirim ringkasan ke Telegram.
+argumen tidak valid. Workflow [`extract`](.github/workflows/extract.yml) berjalan dua kali sehari:
+10.23 WIB run ringan nasional + provinsi (Telegram hanya bila gagal) dan 15.23 WIB run penuh
+termasuk kab/kota (ringkasan Telegram selalu dikirim). Dua jadwal ini menyerap keterlambatan
+cron GitHub yang bisa berjam-jam.
 
 Backfill historis: workflow [`backfill`](.github/workflows/backfill.yml) (manual) menjalankan
 matriks `jenis_pasar × tahun` secara berurutan lalu mengirim satu ringkasan ke Telegram.
