@@ -13,6 +13,12 @@ const base = process.env.BASE_URL;
         const p = await ctx.newPage();
         await p.goto(base + url, { waitUntil: "networkidle" });
         await p.waitForTimeout(500);
+        if (mode === "hp" && scheme === "light") {
+          const teks = await p.evaluate(() =>
+            [...document.querySelectorAll(".panel-pasar:not([hidden]) .sorot, .sorot-peta")].map((e) => e.innerText.replace(/\s+/g, " ")),
+          );
+          for (const t of teks) console.log(`TEKS ${nama}: ${t}`);
+        }
         await p.screenshot({ path: `layar/${nama}-${mode}-${scheme}.png`, fullPage: mode === "hp" && nama === "beranda" ? false : true });
         if (scheme === "light" || nama === "beranda") {
           // versi kecil untuk dibaca dari log run (artefak tidak selalu bisa diunduh)
