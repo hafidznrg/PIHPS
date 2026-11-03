@@ -35,7 +35,7 @@ tetap diunduh dari `extensions.duckdb.org`).
 | Path | Isi |
 | --- | --- |
 | `src/lib/types.ts` | tipe kontrak serving (cermin `src/pihps/serving_schemas/*.schema.json`) |
-| `src/lib/render.ts`, `html.ts` | kartu harga & sparkline SVG: fungsi murni yang sama dipakai saat build dan di peramban, dengan escaping otomatis |
+| `src/lib/render.ts`, `html.ts` | papan harga (baris per komoditas), kalimat ringkasan & sparkline SVG: fungsi murni yang sama dipakai saat build dan di peramban, dengan escaping otomatis |
 | `src/lib/charts.ts` | ECharts modular + tema dari CSS variables (terang/gelap), warna tetap per jenis pasar |
 | `src/lib/duck.ts` | DuckDB-WASM: bundle jsDelivr (versi = package-lock), view `harga`, `wilayah`, `komoditas`, `pasar`, `tanggal` |
 | `src/components/HargaWilayah.astro` | tampilan utama beranda & `/wilayah/<kode>/` |
@@ -45,10 +45,13 @@ tetap diunduh dari `extensions.duckdb.org`).
 
 ## Prinsip
 
-- **Mobile-first & cepat**: HTML statis + CSS ±10 KB; kartu & sparkline tanpa JS; ECharts dimuat
+- **Gaya buletin pasar**: kertas & tinta, judul serif (Newsreader), teks IBM Plex Sans, angka harga
+  IBM Plex Mono (tabular, sejajar). Pemisah berupa garis tipis, bukan kartu/bayangan; tab bergaris
+  bawah. Font di-*self-host* lewat `@fontsource` (tanpa CDN pihak ketiga). Mode gelap ikut sistem.
+- **Mobile-first & cepat**: HTML statis; papan harga & sparkline tanpa JS; ECharts dimuat
   hanya saat grafik terlihat; DuckDB-WASM hanya setelah pengguna menekan "Mulai".
-- **Bahasa awam**: harga per kg, "naik/turun dari minggu lalu", arah selalu ditulis dengan kata &
-  ikon (bukan warna saja); naik = merah karena sudut pandang pembeli.
+- **Bahasa awam**: harga per kg, "naik/turun dari minggu lalu", arah selalu ditandai ikon
+  ▲▼ dan kata untuk pembaca layar (bukan warna saja); naik = merah karena sudut pandang pembeli.
 - **Aksesibel**: semantik HTML, `<select>` native, tab ARIA, tabel cadangan untuk peta, fokus terlihat.
 - **Atribusi** ke PIHPS Nasional – Bank Indonesia di setiap halaman.
 

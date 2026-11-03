@@ -43,29 +43,61 @@ export function palette(): string[] {
 export function baseOption(): echarts.EChartsCoreOption {
   const text = cssVar("--teks-redup");
   const line = cssVar("--garis");
+  const font = cssVar("--font");
   return {
     color: palette(),
-    textStyle: { fontFamily: cssVar("--font"), color: text },
-    grid: { left: 8, right: 16, top: 40, bottom: 56, containLabel: true },
+    textStyle: { fontFamily: font, color: text, fontSize: 11 },
+    grid: { left: 0, right: 8, top: 44, bottom: 52, containLabel: true },
     tooltip: {
       trigger: "axis",
       backgroundColor: cssVar("--permukaan"),
-      borderColor: line,
-      textStyle: { color: cssVar("--teks") },
+      borderColor: cssVar("--garis-kuat"),
+      borderWidth: 1,
+      borderRadius: 2,
+      padding: [8, 10],
+      extraCssText: "box-shadow:none;",
+      textStyle: { color: cssVar("--teks"), fontFamily: font, fontSize: 12 },
+      axisPointer: { type: "line", lineStyle: { color: cssVar("--teks-redup"), width: 1, type: "dashed" } },
       confine: true,
     },
-    legend: { top: 0, textStyle: { color: text }, itemGap: 16 },
+    legend: {
+      type: "scroll",
+      top: 0,
+      pageIconColor: cssVar("--teks"),
+      pageIconInactiveColor: line,
+      pageTextStyle: { color: text },
+      left: 0,
+      icon: "rect",
+      itemWidth: 16,
+      itemHeight: 3,
+      itemGap: 18,
+      textStyle: { color: cssVar("--teks"), fontFamily: font, fontSize: 12 },
+      inactiveColor: line,
+    },
     xAxis: {
-      axisLine: { lineStyle: { color: line } },
-      axisLabel: { color: text, hideOverlap: true },
+      axisLine: { lineStyle: { color: cssVar("--garis-kuat") } },
+      axisTick: { show: false },
+      axisLabel: { color: text, hideOverlap: true, margin: 10 },
       splitLine: { show: false },
     },
     yAxis: {
-      axisLabel: { color: text },
-      splitLine: { lineStyle: { color: line, opacity: 0.6 } },
+      position: "right",
+      axisLabel: { color: text, fontFamily: cssVar("--font-angka"), fontSize: 10.5 },
+      splitLine: { lineStyle: { color: line, type: [3, 3] } },
     },
   };
 }
+
+/** Gaya seri garis yang konsisten di semua grafik. */
+export const gayaGaris = {
+  type: "line" as const,
+  showSymbol: false,
+  symbol: "circle",
+  symbolSize: 6,
+  lineStyle: { width: 1.8 },
+  emphasis: { focus: "series" as const, lineStyle: { width: 2.4 } },
+  connectNulls: false,
+};
 
 /** dataZoom (geser/cubit + slider) yang mengikuti tema terang/gelap. */
 export function zoom(start = 0): object[] {
@@ -74,11 +106,12 @@ export function zoom(start = 0): object[] {
     {
       type: "slider",
       start,
-      height: 18,
-      bottom: 8,
+      height: 20,
+      bottom: 6,
+      brushSelect: false,
       borderColor: cssVar("--garis"),
       backgroundColor: cssVar("--permukaan-2"),
-      fillerColor: "rgba(127,127,127,0.18)",
+      fillerColor: "rgba(127,127,127,0.14)",
       dataBackground: { lineStyle: { color: cssVar("--teks-redup") }, areaStyle: { color: cssVar("--garis") } },
       selectedDataBackground: { lineStyle: { color: cssVar("--aksen") }, areaStyle: { color: cssVar("--garis") } },
       handleStyle: { color: cssVar("--permukaan"), borderColor: cssVar("--teks-redup") },

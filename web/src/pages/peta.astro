@@ -24,6 +24,7 @@ const clientCtx = {
   aktif="peta"
 >
   <section class="hero">
+    <p class="kicker">Antarprovinsi</p>
     <h1>Peta harga per provinsi</h1>
     <p class="hero__ket">Warna makin gelap berarti harga makin mahal. Data terbaru per provinsi, {tanggalPanjang(meta.tanggal_acuan)}.</p>
   </section>
@@ -47,15 +48,49 @@ const clientCtx = {
         ))}
       </div>
     </div>
-    <div class="panel">
-      <p id="peta-ringkas">{ringkasPeta(rows)}</p>
-      <div id="peta-grafik" class="grafik grafik--tinggi grafik-memuat" role="img" aria-label="Peta Indonesia, warna provinsi menunjukkan tingkat harga">Memuat peta…</div>
-    </div>
-    <div class="panel tabel-wadah" id="peta-tabel">
-      <Fragment set:html={tabelPeta(rows, BASE).value} />
+    <p id="peta-ringkas" class="peta__ringkas">{ringkasPeta(rows)}</p>
+    <div class="peta__tata">
+      <div class="peta__peta">
+        <div id="peta-grafik" class="grafik grafik--tinggi grafik-memuat" role="img" aria-label="Peta Indonesia, warna provinsi menunjukkan tingkat harga">Memuat peta…</div>
+      </div>
+      <div class="tabel-wadah peta__tabel" id="peta-tabel">
+        <Fragment set:html={tabelPeta(rows, BASE).value} />
+      </div>
     </div>
     <p class="catatan">Provinsi tanpa warna belum punya data aktif untuk pilihan ini. Wilayah mengikuti 34 provinsi yang dipakai PIHPS.</p>
   </section>
+
+  <style>
+    .peta__ringkas {
+      font-family: var(--font-judul);
+      font-size: 1.2rem;
+      line-height: 1.4;
+      padding-top: 14px;
+      border-top: 1px solid var(--garis-kuat);
+    }
+    .peta__tata {
+      display: grid;
+      gap: 24px;
+    }
+    .peta__tata > * {
+      min-width: 0;
+    }
+    @media (min-width: 64rem) {
+      .peta__tata {
+        grid-template-columns: minmax(0, 1fr) 25rem;
+        align-items: start;
+      }
+      .peta__tabel {
+        max-height: 520px;
+        overflow-y: auto;
+      }
+      .peta__tabel :global(thead th) {
+        position: sticky;
+        top: 0;
+        background: var(--latar);
+      }
+    }
+  </style>
 
   <script>
     import geoUrl from "../data/provinsi-34.geo.json?url";
@@ -125,8 +160,10 @@ const clientCtx = {
             trigger: "item",
             confine: true,
             backgroundColor: cssVar("--permukaan"),
-            borderColor: cssVar("--garis"),
-            textStyle: { color: cssVar("--teks") },
+            borderColor: cssVar("--garis-kuat"),
+            borderRadius: 2,
+            extraCssText: "box-shadow:none;",
+            textStyle: { color: cssVar("--teks"), fontFamily: cssVar("--font") },
             formatter: (info: { name: string; data?: { kode: string } }) => {
               const r = info.data ? byName.get(info.data.kode) : undefined;
               if (!r) return `${info.name}<br/>Belum ada data`;
@@ -141,11 +178,11 @@ const clientCtx = {
                 orient: "horizontal",
                 left: "center",
                 bottom: 0,
-                itemWidth: 12,
-                itemHeight: 160,
+                itemWidth: 10,
+                itemHeight: 180,
                 text: ["Mahal", "Murah"],
                 textStyle: { color: cssVar("--teks-redup") },
-                inRange: { color: [cssVar("--peta-1"), cssVar("--peta-2")] },
+                inRange: { color: [cssVar("--peta-1"), cssVar("--peta-tengah"), cssVar("--peta-2")] },
                 formatter: (v: number) => rupiah(Math.round(v)),
               }
             : { show: false, min: 0, max: 1 },
@@ -162,8 +199,8 @@ const clientCtx = {
               right: 4,
               top: 8,
               bottom: 48,
-              itemStyle: { areaColor: cssVar("--permukaan-2"), borderColor: cssVar("--latar"), borderWidth: 0.6 },
-              emphasis: { label: { show: false }, itemStyle: { areaColor: cssVar("--seri-2") } },
+              itemStyle: { areaColor: cssVar("--peta-kosong"), borderColor: cssVar("--latar"), borderWidth: 0.7 },
+              emphasis: { label: { show: false }, itemStyle: { areaColor: cssVar("--seri-3"), borderColor: cssVar("--garis-kuat"), borderWidth: 1 } },
               select: { disabled: true },
               data: aktif.map((r) => ({ name: nameOf(r.kode_bps), value: r.harga, kode: r.kode_bps })),
             },
