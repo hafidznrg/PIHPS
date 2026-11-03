@@ -6,7 +6,7 @@ name: freshness
 # extract/transform berhenti terpicu. Lihat docs/PLAN.md (Monitoring & alerting).
 on:
   schedule:
-    - cron: "47 10 * * *" # 17.47 WIB, setelah extract 15.00 + transform
+    - cron: "47 10 * * *" # 17.47 WIB, setelah extract pagi & sore (toleransi 3 hari kerja / 30 jam menyerap keterlambatan cron)
   workflow_dispatch:
 
 permissions:
