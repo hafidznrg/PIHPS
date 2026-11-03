@@ -1,10 +1,15 @@
 ---
-// Tampilan utama: harga terkini satu wilayah, per jenis pasar, + grafik per komoditas.
+// Tampilan utama satu wilayah. Hierarki fokus:
+//   1. judul = satu insight terkuat minggu ini (+ hitungan naik/turun/stabil)
+//   2. kartu sorotan (naik tertinggi, turun terdalam, beras, sorotan wilayah)
+//   3. papan semua komoditas, lalu grafik tren dan catatan.
+// Keempat jenis pasar dirender saat build sehingga ganti pasar instan tanpa unduhan.
 import WilayahPicker from "./WilayahPicker.astro";
-import { getMeta, getWilayah, komoditasMap } from "../lib/data";
+import { getMeta, getPeta, getWilayah, komoditasMap } from "../lib/data";
 import { tanggalPanjang, tanggalPendek } from "../lib/format";
-import { panelPasar, type RenderCtx } from "../lib/render";
-import { BASE, dataUrl, href } from "../lib/url";
+import { urutTimpang, type TimpangPeta } from "../lib/peta";
+import { judulInsight, panelBeranda, type RenderCtx, type Timpang } from "../lib/render";
+import { BASE, href } from "../lib/url";
 import type { JenisPasarId } from "../lib/types";
 
 interface Props {
@@ -16,64 +21,82 @@ const doc = getWilayah(kode);
 const w = doc.wilayah;
 const isNasional = w.level === "nasional";
 const ctx: RenderCtx = { base: BASE, komoditas: komoditasMap(meta), kategori: meta.kategori, isNasional };
-const pasarNama = new Map(meta.jenis_pasar.map((p) => [p.id, p.nama]));
+const pasarMeta = new Map(meta.jenis_pasar.map((p) => [p.id, p]));
 const urutan: JenisPasarId[] = [1, 2, 3, 4];
 const pasarList = [...doc.pasar].sort((a, b) => urutan.indexOf(a.jenis_pasar_id) - urutan.indexOf(b.jenis_pasar_id));
 const awal = pasarList.find((p) => p.jenis_pasar_id === 1) ?? pasarList[0];
 const tanggalData = awal?.terkini.reduce((m, t) => (t.tanggal > m ? t.tanggal : m), "") || doc.tanggal_acuan;
-const judul = isNasional ? "Harga pangan hari ini" : `Harga pangan di ${w.nama}`;
-const kicker = isNasional ? "Rata-rata nasional" : w.level === "kabkota" ? `Kabupaten/kota · ${w.nama_provinsi ?? ""}` : "Provinsi";
-const lokasi = isNasional ? "rata-rata nasional" : w.level === "kabkota" ? `${w.nama}, ${w.nama_provinsi}` : w.nama;
-const komoditasGrafik = meta.komoditas.filter((k) => k.level === 2);
-const komoditasAwal = komoditasGrafik.find((k) => awal?.harian.harga[k.id]?.some((v) => v != null))?.id ?? "com_1";
-// Konteks kecil untuk render ulang di peramban (nama, satuan, kategori).
-const clientCtx = {
-  kode,
-  isNasional,
-  komoditas: meta.komoditas.map((k) => ({ id: k.id, nama: k.nama, satuan: k.satuan, level: k.level })),
-  kategori: meta.kategori,
+const lokasi = isNasional ? "Rata-rata nasional" : w.level === "kabkota" ? `${w.nama}, ${w.nama_provinsi ?? ""}` : w.nama;
+const level2 = meta.komoditas.filter((k) => k.level === 2).map((k) => k.id);
+
+function timpangUntuk(id: JenisPasarId): Timpang[] {
+  const pm = pasarMeta.get(id);
+  if (!isNasional || !pm) return [];
+  let list: TimpangPeta[] = [];
+  try {
+    list = urutTimpang(getPeta(pm.slug), level2).slice(0, 4);
+  } catch {
+    return []; // file peta jenis pasar ini tidak ada: kartu timpang dilewati
+  }
+  return list.map((t) => ({
+    komoditas_id: t.komoditas_id,
+    murah: { nama: t.murah.nama, harga: t.murah.harga },
+    mahal: { nama: t.mahal.nama, harga: t.mahal.harga },
+    selisih: t.selisih,
+    href: href(`peta/?k=${t.komoditas_id}&p=${pm.slug}`),
+  }));
+}
+const panels = pasarList.map((p) => ({
+  id: p.jenis_pasar_id,
+  judul: judulInsight(p, ctx),
+  html: panelBeranda(p, ctx, timpangUntuk(p.jenis_pasar_id)).value,
+}));
+const komoditasAwal = meta.komoditas.find((k) => k.level === 2 && awal?.harian.harga[k.id]?.some((v) => v != null))?.id ?? "com_1";
+const grafikCtx = {
+  url: href(`data/view/wilayah/${kode}/`),
   pasar: Object.fromEntries(meta.jenis_pasar.map((p) => [p.id, p.nama])),
-  url: dataUrl(`serving/wilayah/${kode}.json`),
+  komoditas: Object.fromEntries(meta.komoditas.map((k) => [k.id, k.nama])),
 };
 ---
 
-<section class="hero">
-  <p class="kicker">{kicker}</p>
-  <h1>{judul}</h1>
-  <p class="hero__ket">
-    {isNasional ? "Harga rata-rata nasional" : `Harga rata-rata di ${lokasi}`} untuk {komoditasGrafik.length} bahan pangan pokok, data <time datetime={tanggalData}>{tanggalPanjang(tanggalData)}</time>.
-    Ketuk satu baris untuk melihat tren dan harga di provinsi lain.
-  </p>
-</section>
-
-<div class="kontrol kontrol--harga">
+<div class="saring saring--atas" role="group" aria-label="Pilih wilayah dan jenis pasar">
   <WilayahPicker wilayah={meta.wilayah} aktif={kode} />
+  {pasarList.length > 1 && (
+    <label class="saring__isian">
+      <span class="sr-only">Jenis pasar</span>
+      <select id="pilih-pasar">
+        {pasarList.map((p) => <option value={String(p.jenis_pasar_id)} selected={p === awal}>{pasarMeta.get(p.jenis_pasar_id)?.nama}</option>)}
+      </select>
+    </label>
+  )}
 </div>
+
+<section class="hero hero--insight">
+  <p class="kicker">{lokasi} · <time datetime={tanggalData}>{tanggalPanjang(tanggalData)}</time></p>
+  <h1 id="judul-insight">{panels[0]?.judul ?? `Harga pangan di ${w.nama}`}</h1>
+</section>
 
 {pasarList.length === 0 ? (
   <p class="kosong">Belum ada data harga untuk wilayah ini.</p>
 ) : (
-  <section class="bagian bagian--papan" id="harga" data-ctx={JSON.stringify(clientCtx)}>
-    <div class="tab" role="tablist" aria-label="Jenis pasar">
-      {pasarList.map((p) => (
-        <button type="button" role="tab" id={`tab-${p.jenis_pasar_id}`} aria-controls="panel-harga" aria-selected={p === awal ? "true" : "false"} data-pasar={p.jenis_pasar_id}>
-          {pasarNama.get(p.jenis_pasar_id)}
-        </button>
-      ))}
-    </div>
-    <div id="panel-harga" role="tabpanel" aria-labelledby={`tab-${awal?.jenis_pasar_id}`} aria-live="polite">
-      <Fragment set:html={awal ? panelPasar(awal, ctx).value : ""} />
-    </div>
-  </section>
+  <div id="harga" aria-live="polite">
+    {panels.map((p, i) => (
+      <div class="panel-pasar" data-pasar={p.id} data-judul={p.judul} hidden={i !== 0}>
+        <Fragment set:html={p.html} />
+      </div>
+    ))}
+  </div>
+)}
 
-  <section class="bagian panel" aria-labelledby="judul-grafik">
+{pasarList.length > 0 && (
+  <section class="bagian panel" aria-labelledby="judul-grafik" id="bagian-grafik" data-ctx={JSON.stringify(grafikCtx)}>
     <div class="bagian__kepala">
-      <h2 id="judul-grafik">Grafik harga</h2>
+      <h2 id="judul-grafik">Tren harga</h2>
       <p class="catatan" id="ket-grafik"></p>
     </div>
-    <div class="kontrol">
-      <div class="isian">
-        <label for="grafik-komoditas">Komoditas</label>
+    <div class="saring">
+      <label class="saring__isian saring__isian--lebar">
+        <span class="sr-only">Komoditas</span>
         <select id="grafik-komoditas">
           {meta.kategori.map((kat) => (
             <optgroup label={kat.nama}>
@@ -84,96 +107,82 @@ const clientCtx = {
             </optgroup>
           ))}
         </select>
-      </div>
+      </label>
       <div class="tab tab--kecil" role="tablist" aria-label="Rentang waktu">
         <button type="button" role="tab" aria-selected="true" data-rentang="harian">3 bulan</button>
         <button type="button" role="tab" aria-selected="false" data-rentang="bulanan">Semua, bulanan</button>
       </div>
     </div>
     <div id="grafik-wilayah" class="grafik grafik-memuat" role="img" aria-label="Grafik harga komoditas terpilih per jenis pasar">Memuat grafik…</div>
-    <p class="catatan">
-      Satu garis per jenis pasar. Nilai yang terdeteksi sebagai salah input di sumber tidak ditampilkan.{" "}
-      <a href={href("tentang/#metode")}>Metode</a>
-    </p>
+    <p class="catatan">Satu garis per jenis pasar. Nilai yang terdeteksi salah input di sumber tidak ditampilkan.</p>
   </section>
 )}
 
 <p class="catatan bagian">
-  Harga adalah rata-rata harga pasar yang dipantau PIHPS Bank Indonesia di {isNasional ? "seluruh Indonesia" : lokasi}, bukan harga satu
-  pedagang. Data diperbarui setiap hari kerja. Terakhir diproses {tanggalPendek(meta.dibuat_pada.slice(0, 10))}.
+  Rata-rata harga pasar yang dipantau PIHPS Bank Indonesia, bukan harga satu pedagang. Diperbarui setiap hari kerja; terakhir
+  diproses {tanggalPendek(meta.dibuat_pada.slice(0, 10))}. <a href={href("tentang/#metode")}>Metode</a>
 </p>
 
 <script>
-  import { panelPasar, type RenderCtx } from "../lib/render";
   import { bulanPendek, tanggalPendek } from "../lib/format";
-  import type { Komoditas, Kategori, WilayahDoc } from "../lib/types";
 
-  interface ClientCtx {
-    kode: string;
-    isNasional: boolean;
-    komoditas: Pick<Komoditas, "id" | "nama" | "satuan" | "level">[];
-    kategori: Kategori[];
-    pasar: Record<string, string>;
+  interface View {
+    pasar: { id: number; x: string[]; harga: Record<string, (number | null)[]> }[];
+  }
+  interface GrafikCtx {
     url: string;
+    pasar: Record<string, string>;
+    komoditas: Record<string, string>;
   }
 
-  const root = document.getElementById("harga");
-  if (root?.dataset["ctx"]) {
-    const c = JSON.parse(root.dataset["ctx"]) as ClientCtx;
-    const ctx: RenderCtx = {
-      base: import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`,
-      komoditas: new Map(c.komoditas.map((k) => [k.id, k as Komoditas])),
-      kategori: c.kategori,
-      isNasional: c.isNasional,
-    };
-    let docPromise: Promise<WilayahDoc> | null = null;
-    const loadDoc = () =>
-      (docPromise ??= fetch(c.url).then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json() as Promise<WilayahDoc>;
-      }));
+  // --- jenis pasar: semua panel sudah ada di HTML; cukup tukar yang tampil
+  const pilihPasar = document.getElementById("pilih-pasar") as HTMLSelectElement | null;
+  const judul = document.getElementById("judul-insight");
+  const panels = [...document.querySelectorAll<HTMLElement>(".panel-pasar")];
+  pilihPasar?.addEventListener("change", () => {
+    for (const p of panels) {
+      const aktif = p.dataset["pasar"] === pilihPasar.value;
+      p.hidden = !aktif;
+      if (aktif && judul) judul.textContent = p.dataset["judul"] ?? "";
+    }
+  });
 
-    // --- tab jenis pasar
-    const panel = document.getElementById("panel-harga")!;
-    const tabs = [...root.querySelectorAll<HTMLButtonElement>("[data-pasar]")];
-    tabs.forEach((tab) =>
-      tab.addEventListener("click", async () => {
-        tabs.forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
-        panel.setAttribute("aria-labelledby", tab.id);
-        try {
-          const doc = await loadDoc();
-          const pasar = doc.pasar.find((p) => String(p.jenis_pasar_id) === tab.dataset["pasar"]);
-          if (pasar) panel.innerHTML = panelPasar(pasar, ctx).value;
-        } catch {
-          panel.innerHTML = '<p class="kosong">Gagal memuat data. Periksa koneksi lalu coba lagi.</p>';
-        }
-      }),
-    );
-
-    // --- grafik (ECharts dimuat saat bagian grafik terlihat)
+  // --- grafik (ECharts & data dimuat hanya saat bagian grafik hampir terlihat)
+  const bagian = document.getElementById("bagian-grafik");
+  if (bagian?.dataset["ctx"]) {
+    const c = JSON.parse(bagian.dataset["ctx"]) as GrafikCtx;
     const el = document.getElementById("grafik-wilayah")!;
     const pilih = document.getElementById("grafik-komoditas") as HTMLSelectElement;
     const ket = document.getElementById("ket-grafik")!;
-    const rentangTabs = [...document.querySelectorAll<HTMLButtonElement>("[data-rentang]")];
+    const rentangTabs = [...bagian.querySelectorAll<HTMLButtonElement>("[data-rentang]")];
     let rentang: "harian" | "bulanan" = "harian";
+    const views = new Map<string, Promise<View>>();
+    const loadView = (r: string) => {
+      if (!views.has(r))
+        views.set(
+          r,
+          fetch(`${c.url}${r}.json`).then((res) => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json() as Promise<View>;
+          }),
+        );
+      return views.get(r)!;
+    };
 
     async function gambar() {
-      const [{ mount, baseOption, gayaGaris, rp, rpRingkas, warnaPasar, zoom }, doc] = await Promise.all([import("../lib/charts"), loadDoc()]);
+      const [{ mount, baseOption, gayaGaris, rp, rpRingkas, warnaPasar, zoom }, view] = await Promise.all([import("../lib/charts"), loadView(rentang)]);
       el.classList.remove("grafik-memuat");
       el.textContent = "";
       const chart = mount(el);
       const id = pilih.value;
-      const k = ctx.komoditas.get(id);
-      const series = doc.pasar.map((p) => {
-        const s = p[rentang];
-        const xs = rentang === "harian" ? (s as WilayahDoc["pasar"][number]["harian"]).tanggal : (s as WilayahDoc["pasar"][number]["bulanan"]).bulan;
-        return {
+      const series = view.pasar
+        .map((p) => ({
           ...gayaGaris,
-          name: c.pasar[String(p.jenis_pasar_id)] ?? String(p.jenis_pasar_id),
-          color: warnaPasar(p.jenis_pasar_id),
-          data: xs.map((x, i) => [x, s.harga[id]?.[i] ?? null]),
-        };
-      }).filter((s) => s.data.some((d) => d[1] != null));
+          name: c.pasar[String(p.id)] ?? String(p.id),
+          color: warnaPasar(p.id),
+          data: p.x.map((x, i) => [x, p.harga[id]?.[i] ?? null]),
+        }))
+        .filter((s) => s.data.some((d) => d[1] != null));
       const base = baseOption();
       chart.setOption(
         {
@@ -195,23 +204,27 @@ const clientCtx = {
         { notMerge: true },
       );
       ket.textContent = series.length
-        ? `${k?.nama ?? id}, ${rentang === "harian" ? "harga harian 3 bulan terakhir" : "rata-rata bulanan"}`
+        ? `${c.komoditas[id] ?? id}, ${rentang === "harian" ? "harian 3 bulan terakhir" : "rata-rata bulanan"}`
         : "Belum ada data untuk komoditas ini";
     }
+    const coba = () => gambar().catch(() => (el.textContent = "Gagal memuat grafik."));
 
-    pilih.addEventListener("change", () => void gambar());
+    pilih.addEventListener("change", () => void coba());
     rentangTabs.forEach((b) =>
       b.addEventListener("click", () => {
         rentang = b.dataset["rentang"] as typeof rentang;
         rentangTabs.forEach((t) => t.setAttribute("aria-selected", String(t === b)));
-        void gambar();
+        void coba();
       }),
     );
-    new IntersectionObserver((entries, obs) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        obs.disconnect();
-        gambar().catch(() => (el.textContent = "Gagal memuat grafik."));
-      }
-    }, { rootMargin: "200px" }).observe(el);
+    new IntersectionObserver(
+      (entries, obs) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          obs.disconnect();
+          void coba();
+        }
+      },
+      { rootMargin: "300px" },
+    ).observe(el);
   }
 </script>

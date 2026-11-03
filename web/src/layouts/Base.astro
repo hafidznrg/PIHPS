@@ -3,6 +3,11 @@ import "../styles/global.css";
 import { getMeta } from "../lib/data";
 import { tanggalPanjang, tanggalPendek } from "../lib/format";
 import { href } from "../lib/url";
+// Font utama dipreload supaya teks tidak "melompat" saat font datang (URL = aset yang sama
+// dengan yang dirujuk CSS @font-face, karena Vite meng-hash file yang sama).
+import fontJudul from "@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2?url";
+import fontTeks from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2?url";
+import fontAngka from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2?url";
 
 interface Props {
   title: string;
@@ -30,6 +35,9 @@ const nav: { id: string; label: string; href: string; pre?: string; post?: strin
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    <link rel="preload" href={fontJudul} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={fontTeks} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={fontAngka} as="font" type="font/woff2" crossorigin />
     <link rel="icon" href={href("favicon.svg")} type="image/svg+xml" />
     <meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#15140f" media="(prefers-color-scheme: dark)" />

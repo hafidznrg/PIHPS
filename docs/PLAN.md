@@ -24,7 +24,7 @@ mudah dipahami masyarakat awam.
 | F1 Ingestion harian | Extractor raw + manifest, cron 10.23 WIB (ringan) + 15.23 WIB (penuh), ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian terbukti jalan: run terjadwal pertama 2 Nov ([run 41492692040](https://github.com/hafidznrg/PIHPS/actions/runs/41492692040)) lolos 685/685 request, 13.026 record, Telegram terkirim, lalu `transform` → `web` otomatis hijau — tetapi terpicu 17.36 UTC, ±9,5 jam setelah jadwal 08.00 UTC; sejak 3 Nov dua jadwal (lihat Log keputusan) |
 | F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Selesai 2 Nov (PR #3). Data penuh: 8,74 juta baris staging 2017-06-01 → 2026-10-30, 203 wilayah; dbt 130 detik; 196 sel outlier ditandai; Parquet + 239 file serving di R2; Telegram terkirim |
 | F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Selesai 2 Nov untuk nasional + provinsi: backfill 40/40 job, 15.940 request, 0 gagal, 403.985 record, 8,2 jam ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499)); workflow `freshness` harian (PR #3). Backfill kab/kota historis berjalan sejak 3 Nov 07.58 UTC ([run 41599876428](https://github.com/hafidznrg/PIHPS/actions/runs/41599876428)): 40 job, ±46 ribu request, perkiraan ±20 jam, daftar kab/kota kondisi sekarang |
-| F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Selesai 2 Nov (PR #3): tayang di <https://hafidznrg.github.io/PIHPS/>; deploy pertama dari `main` sukses (240 halaman, kontrak & 14 e2e data nyata lolos). Berikutnya: HET (menunggu sumber nilai) |
+| F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Selesai 2 Nov (PR #3): tayang di <https://hafidznrg.github.io/PIHPS/>; deploy pertama dari `main` sukses (240 halaman, kontrak & 14 e2e data nyata lolos). 3 Nov: perbaikan kecepatan, beranda berhierarki insight, dan peta SVG tanpa distorsi (PR branch `claude/magical-wright-nuumv7`). Berikutnya: HET (menunggu sumber nilai) |
 | F5 Analisis & publikasi | Volatilitas, disparitas, musiman, margin rantai pasok; README akhir | Belum |
 
 Kondisi operasional per 3 Nov 2026: semua PR (#1–#4) sudah di-merge, tidak ada PR terbuka. Rantai
@@ -142,6 +142,14 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 - **Halaman**: Beranda (harga hari ini nasional, naik/turun), Wilayah (provinsi & kab/kota),
   Peta provinsi, Komoditas (tren sejak 2017 + rantai pasok produsen → pedagang besar → eceran),
   Jelajahi (DuckDB-WASM membaca Parquet marts dari origin yang sama), Tentang data.
+- **Kinerja**: peta provinsi = SVG yang diproyeksikan & disederhanakan saat build
+  (`web/src/lib/geo.ts`), bukan ECharts + GeoJSON di peramban; keempat jenis pasar dirender
+  saat build; grafik memakai file *view* build-time (`/data/view/wilayah/<kode>/{harian,bulanan}.json`)
+  yang diturunkan dari kontrak serving, jadi kontrak & pipeline tidak berubah. ECharts hanya
+  dimuat saat grafik hampir terlihat.
+- **Beranda**: hierarki fokus = (1) judul insight perubahan mingguan terbesar + hitungan
+  naik/turun/stabil, (2) kartu sorotan, (3) papan semua komoditas, lalu grafik & catatan.
+- **Peta**: warna diverging terhadap rata-rata nasional, 5 kelas berambang tetap (±5%, ±15%).
 - **Hosting**: GitHub Pages lewat Actions (repo publik, tanpa secret tambahan). Workflow `web`
   berjalan setelah `transform`.
 
@@ -199,4 +207,6 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | 2 Nov 2026 | Outlier juga = harga > Rp1 juta/kg | Salah input berkepanjangan (Bengkulu produsen daging sapi Rp12 juta/kg sebulan) mencemari median jendela sehingga aturan relatif saja tidak cukup |
 | 2 Nov 2026 | Workflow produksi memasang dependency minimum: extract/backfill/probe/freshness `--no-default-groups`, transform/web `--group transform`; grup `dev` (+`transform`) tetap default untuk lokal & CI | Run harian tidak perlu dbt/duckdb/pytest; lebih cepat dan permukaan dependency lebih kecil |
 | 3 Nov 2026 | Cron extract jadi dua jadwal: `23 3 * * *` (10.23 WIB) nasional + provinsi saja, Telegram hanya bila gagal; `23 8 * * *` (15.23 WIB) penuh, Telegram selalu. Jenis run dibedakan lewat `github.event.schedule` | Run terjadwal 2 Nov terlambat ±9,5 jam. Run pagi membuat angka utama web tetap tayang hari itu walau terlambat; tambahan beban ke PIHPS ±180 request/hari (bukan 685); run sore tetap jadi heartbeat. Menit :23 menghindari puncak antrean jadwal GitHub di :00. Scheduler eksternal ditunda karena butuh secret baru |
+| 3 Nov 2026 | Peta = SVG build-time; skala diverging vs rata-rata nasional, kelas tetap ±5%/±15% (biru murah, abu setara, merah mahal), bukan gradasi kontinu min–max | Diputuskan pemilik project. Peta lama terdistorsi (ECharts merentang ke kotak wadah) dan butuh ±900 KB JS+GeoJSON. Ambang tetap membuat arti warna sama di semua komoditas dan memisahkan "mencolok sekali" dari "sedikit"; pola diverging dengan titik tengah netral pada rata-rata mengikuti praktik Datawrapper/Esri untuk cerita di atas–di bawah rata-rata |
+| 3 Nov 2026 | Optimasi web tanpa mengubah kontrak serving: panel 4 jenis pasar dirender saat build, file view grafik dibuat saat build, font Newsreader sumbu `wght` + preload | Kontrak serving tetap stabil bagi pipeline; penghematan terbesar ada di sisi situs. Dievaluasi lagi bila wilayah/<kode>.json perlu dipecah di serving |
 | 3 Nov 2026 | Backfill kab/kota dijalankan dengan daftar `GetRefRegency` kondisi sekarang: workflow `backfill` yang ada, `levels=kabkota`, 2017-06-01 → 2026-10-31, matriks 40 job, `max-parallel: 1` | Diputuskan pemilik project. Tanpa perubahan kode; kab/kota yang sudah hilang dari daftar PIHPS tidak terambil (keterbatasan didokumentasikan). Kapasitas cukup: transform 3,5 dari 60 menit, situs 14,7 MB |

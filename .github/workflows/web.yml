@@ -76,6 +76,10 @@ jobs:
             echo "- halaman: $(find dist -name index.html | wc -l)";
             echo "- ukuran total: $(du -sh dist | cut -f1)";
             echo "- tanggal acuan: $(jq -r .tanggal_acuan public/data/serving/meta.json)";
+            echo "- HTML beranda (gzip): $(gzip -c dist/index.html | wc -c) B";
+            echo "- HTML peta (gzip): $(gzip -c dist/peta/index.html | wc -c) B";
+            echo "- view grafik nasional harian/bulanan (gzip): $(gzip -c dist/data/view/wilayah/nasional/harian.json | wc -c) / $(gzip -c dist/data/view/wilayah/nasional/bulanan.json | wc -c) B";
+            echo "- serving wilayah/nasional.json (gzip, tidak lagi diunduh peramban): $(gzip -c public/data/serving/wilayah/nasional.json | wc -c) B";
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-pages-artifact@v3
         with:

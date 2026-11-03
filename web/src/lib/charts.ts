@@ -1,13 +1,12 @@
-// ECharts dengan impor modular (hanya chart & komponen yang dipakai) + tema dari CSS
+// ECharts dengan impor modular (hanya chart & komponen yang dipakai; peta = SVG build-time) + tema dari CSS
 // variables sehingga ikut mode terang/gelap.
 import * as echarts from "echarts/core";
-import { BarChart, LineChart, MapChart } from "echarts/charts";
+import { BarChart, LineChart } from "echarts/charts";
 import {
   DataZoomComponent,
   GridComponent,
   LegendComponent,
   TooltipComponent,
-  VisualMapComponent,
   MarkLineComponent,
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
@@ -15,12 +14,10 @@ import { CanvasRenderer } from "echarts/renderers";
 echarts.use([
   LineChart,
   BarChart,
-  MapChart,
   GridComponent,
   TooltipComponent,
   LegendComponent,
   DataZoomComponent,
-  VisualMapComponent,
   MarkLineComponent,
   CanvasRenderer,
 ]);
@@ -44,10 +41,12 @@ export function baseOption(): echarts.EChartsCoreOption {
   const text = cssVar("--teks-redup");
   const line = cssVar("--garis");
   const font = cssVar("--font");
+  const sempit = window.matchMedia("(max-width: 40rem)").matches;
   return {
     color: palette(),
     textStyle: { fontFamily: font, color: text, fontSize: 11 },
-    grid: { left: 0, right: 8, top: 44, bottom: 52, containLabel: true },
+    // legenda dibungkus (bukan digulir "1/2") — di HP memakan dua baris, jadi grid turun
+    grid: { left: 0, right: 8, top: sempit ? 62 : 40, bottom: 52, containLabel: true },
     tooltip: {
       trigger: "axis",
       backgroundColor: cssVar("--permukaan"),
@@ -61,16 +60,14 @@ export function baseOption(): echarts.EChartsCoreOption {
       confine: true,
     },
     legend: {
-      type: "scroll",
+      type: "plain",
       top: 0,
-      pageIconColor: cssVar("--teks"),
-      pageIconInactiveColor: line,
-      pageTextStyle: { color: text },
       left: 0,
+      right: 0,
       icon: "rect",
       itemWidth: 16,
       itemHeight: 3,
-      itemGap: 18,
+      itemGap: sempit ? 12 : 18,
       textStyle: { color: cssVar("--teks"), fontFamily: font, fontSize: 12 },
       inactiveColor: line,
     },

@@ -1,6 +1,6 @@
 ---
-// Pemilih wilayah: <select> native (ramah HP & pembaca layar), dikelompokkan per provinsi.
-// Tanpa JS tetap ada tautan ke daftar wilayah.
+// Pemilih wilayah ringkas: <select> native (ramah HP & pembaca layar), dikelompokkan per
+// provinsi. Tanpa JS tetap ada tautan ke daftar wilayah.
 import type { WilayahMeta } from "../lib/types";
 import { href, wilayahHref } from "../lib/url";
 
@@ -21,10 +21,10 @@ const kabGroups = [...kabByProv.entries()]
 const label = (w: WilayahMeta) => (w.is_aktif ? w.nama : `${w.nama} (data lama)`);
 ---
 
-<div class="isian pilih-wilayah">
-  <label for="pilih-wilayah">Pilih wilayah</label>
+<label class="saring__isian saring__isian--lebar pilih-wilayah">
+  <span class="sr-only">Wilayah</span>
   <select id="pilih-wilayah" name="kode">
-    <option value="nasional" data-href={wilayahHref("nasional")} selected={aktif === "nasional"}>Nasional (rata-rata Indonesia)</option>
+    <option value="nasional" data-href={wilayahHref("nasional")} selected={aktif === "nasional"}>Nasional</option>
     <optgroup label="Provinsi">
       {provinsi.map((w) => <option value={w.kode} data-href={wilayahHref(w.kode)} selected={aktif === w.kode}>{label(w)}</option>)}
     </optgroup>
@@ -34,8 +34,8 @@ const label = (w: WilayahMeta) => (w.is_aktif ? w.nama : `${w.nama} (data lama)`
       </optgroup>
     ))}
   </select>
-  <noscript><a href={href("wilayah/")}>Lihat daftar semua wilayah</a></noscript>
-</div>
+  <noscript><a href={href("wilayah/")}>Daftar semua wilayah</a></noscript>
+</label>
 
 <script>
   document.querySelectorAll<HTMLSelectElement>(".pilih-wilayah select").forEach((sel) => {

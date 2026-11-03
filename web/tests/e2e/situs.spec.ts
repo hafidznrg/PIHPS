@@ -16,28 +16,37 @@ async function tanpaLuberHorizontal(page: Page) {
   expect(sw, "halaman tidak boleh bisa digeser ke samping").toBeLessThanOrEqual(cw);
 }
 
-test("beranda: kartu harga nasional, ringkasan, dan grafik", async ({ page }) => {
+test("beranda: judul insight, sorotan, papan, dan grafik", async ({ page }) => {
   const errs = pantauGalat(page);
   await page.goto("./");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Harga pangan hari ini");
-  await expect(page.locator(".kartu").first()).toBeVisible();
-  expect(await page.locator(".kartu").count()).toBeGreaterThanOrEqual(21);
-  await expect(page.locator(".ringkasan")).toContainText("naik");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/dalam seminggu|stabil/);
+  await expect(page.locator(".kicker").first()).toContainText("Rata-rata nasional");
+  const panel = page.locator(".panel-pasar:not([hidden])");
+  await expect(panel).toHaveCount(1);
+  await expect(panel.locator(".hitung")).toContainText("naik");
+  expect(await panel.locator(".sorot").count()).toBeGreaterThanOrEqual(3);
+  expect(await panel.locator(".kartu").count()).toBeGreaterThanOrEqual(21);
   await expect(page.locator("footer")).toContainText("PIHPS Nasional – Bank Indonesia");
   await page.locator("#grafik-wilayah").scrollIntoViewIfNeeded();
   await expect(page.locator("#grafik-wilayah canvas")).toBeVisible();
+  await page.getByRole("tab", { name: "Semua, bulanan" }).click();
+  await expect(page.locator("#ket-grafik")).toContainText("rata-rata bulanan");
   await tanpaLuberHorizontal(page);
   expect(errs).toEqual([]);
 });
 
-test("ganti jenis pasar merender ulang kartu dari JSON serving", async ({ page }) => {
+test("ganti jenis pasar langsung menampilkan panel yang sudah dirender", async ({ page }) => {
   const errs = pantauGalat(page);
   await page.goto("./");
-  const hargaAwal = await page.locator(".kartu__harga").first().textContent();
-  const tab = page.getByRole("tab", { name: "Produsen" });
-  await tab.click();
-  await expect(tab).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator(".kartu__harga").first()).not.toHaveText(hargaAwal ?? "");
+  const harga = () => page.locator(".panel-pasar:not([hidden]) .kartu__harga").first().textContent();
+  const hargaAwal = await harga();
+  await page.selectOption("#pilih-pasar", "4");
+  await expect(page.locator('.panel-pasar[data-pasar="4"]')).toBeVisible();
+  await expect(page.locator('.panel-pasar[data-pasar="1"]')).toBeHidden();
+  expect(await harga()).not.toBe(hargaAwal);
+  const judulBaru = await page.locator('.panel-pasar[data-pasar="4"]').getAttribute("data-judul");
+  expect(judulBaru).toBeTruthy();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(judulBaru!);
   expect(errs).toEqual([]);
 });
 
@@ -45,10 +54,12 @@ test("pilih wilayah membuka halaman provinsi dengan perbandingan nasional", asyn
   await page.goto("./");
   const opsi = page.locator("#pilih-wilayah optgroup[label='Provinsi'] option").first();
   const kode = await opsi.getAttribute("value");
+  const nama = (await opsi.textContent())!.replace(" (data lama)", "");
   await page.selectOption("#pilih-wilayah", kode!);
   await expect(page).toHaveURL(new RegExp(`/wilayah/${kode}/$`));
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Harga pangan di");
-  await expect(page.locator(".banding").first()).toContainText("nasional");
+  await expect(page.locator(".kicker").first()).toContainText(nama);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.locator(".panel-pasar:not([hidden]) .banding").first()).toContainText("nasional");
 });
 
 test("halaman komoditas: rantai pasok, tren, provinsi", async ({ page }) => {
@@ -63,15 +74,30 @@ test("halaman komoditas: rantai pasok, tren, provinsi", async ({ page }) => {
   expect(errs).toEqual([]);
 });
 
-test("peta: choropleth, parameter URL, dan tabel cadangan", async ({ page }) => {
+test("peta: SVG tanpa distorsi, warna vs nasional, parameter URL, tabel", async ({ page }) => {
   const errs = pantauGalat(page);
   await page.goto("./peta/?k=com_13&p=pasar_modern");
-  await expect(page.locator("#peta-grafik canvas")).toBeVisible();
+  const svg = page.locator("#peta-svg svg");
+  await expect(svg).toBeVisible();
+  await expect(page.locator("#peta-svg path.prov")).toHaveCount(34);
+  const box = (await svg.boundingBox())!;
+  expect(box.width / box.height, "rasio peta Indonesia ±2,7 (tidak direntang)").toBeGreaterThan(2.5);
+  expect(box.width / box.height).toBeLessThan(2.9);
   await expect(page.locator("#peta-komoditas")).toHaveValue("com_13");
-  await expect(page.getByRole("tab", { name: "Pasar Modern" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#peta-pasar")).toHaveValue("pasar_modern");
+  await expect(page.locator("#peta-sorot")).toContainText("Termahal");
+  await expect(page.locator("#peta-sorot")).toContainText("Rata-rata nasional");
+  await expect(page.locator(".penanda-peta--mahal")).toHaveCount(1);
+  await expect(page.locator("#peta-legenda .legenda__item")).toHaveCount(5);
   await expect(page.locator("#peta-tabel tbody tr").first()).toBeVisible();
+  // ketuk/klik provinsi berwarna -> angka tampil
+  await page.locator("#peta-svg path.prov:not(.k-na)").first().click({ force: true });
+  await expect(page.locator("#peta-tip")).toBeVisible();
+  await expect(page.locator("#peta-tip")).toContainText("Rp");
   await page.selectOption("#peta-komoditas", "com_1");
   await expect(page).toHaveURL(/k=com_1&/);
+  await page.selectOption("#peta-pasar", "pasar_tradisional");
+  await expect(page).toHaveURL(/p=pasar_tradisional/);
   await tanpaLuberHorizontal(page);
   expect(errs).toEqual([]);
 });
