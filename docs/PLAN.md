@@ -1,6 +1,6 @@
 # Rencana Project PIHPS Harga Pangan
 
-_Dokumen hidup. Terakhir diperbarui: 2 Nov 2026 (F2–F4). Perbarui bagian **Status** dan **Log keputusan**
+_Dokumen hidup. Terakhir diperbarui: 3 Nov 2026 (cron harian terverifikasi). Perbarui bagian **Status** dan **Log keputusan**
 setiap kali fase selesai atau keputusan berubah._
 
 ## Ringkasan
@@ -21,11 +21,16 @@ mudah dipahami masyarakat awam.
 | Fase | Isi | Status |
 | --- | --- | --- |
 | F0 Fondasi | Repo, endpoint terdokumentasi, probe lolos 18/19 dari runner GitHub, R2 & Telegram siap | Selesai 1 Nov |
-| F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian aktif mulai 2 Nov |
+| F1 Ingestion harian | Extractor raw + manifest, cron 15.00 WIB, ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian terbukti jalan: run terjadwal pertama 2 Nov ([run 41492692040](https://github.com/hafidznrg/PIHPS/actions/runs/41492692040)) lolos 685/685 request, 13.026 record, Telegram terkirim, lalu `transform` → `web` otomatis hijau — tetapi terpicu 17.36 UTC, ±9,5 jam setelah jadwal 08.00 UTC |
 | F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Selesai 2 Nov (PR #3). Data penuh: 8,74 juta baris staging 2017-06-01 → 2026-10-30, 203 wilayah; dbt 130 detik; 196 sel outlier ditandai; Parquet + 239 file serving di R2; Telegram terkirim |
 | F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Selesai 2 Nov untuk nasional + provinsi: backfill 40/40 job, 15.940 request, 0 gagal, 403.985 record, 8,2 jam ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499)); workflow `freshness` harian (PR #3). Kab/kota historis menyusul |
 | F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Selesai 2 Nov (PR #3): tayang di <https://hafidznrg.github.io/PIHPS/>; deploy pertama dari `main` sukses (240 halaman, kontrak & 14 e2e data nyata lolos). Berikutnya: HET (menunggu sumber nilai) |
 | F5 Analisis & publikasi | Volatilitas, disparitas, musiman, margin rantai pasok; README akhir | Belum |
+
+Kondisi operasional per 3 Nov 2026: semua PR (#1–#4) sudah di-merge, tidak ada PR terbuka. Rantai
+harian `extract` → `transform` → `web` dan `freshness` terjadwal berjalan hijau. Run terjadwal GitHub Actions terlambat ±9,5–10 jam (extract 17.36 UTC,
+freshness 20.30 UTC pada 2 Nov) — urutan extract sebelum freshness tetap terjaga, tetapi data di
+web baru diperbarui sekitar 00.30–01.00 WIB hari berikutnya.
 
 F1–F3 diprioritaskan selama kredit sesi cloud Claude Code masih ada (habis 5 Nov 2026, 14.59 WIB).
 
@@ -148,6 +153,7 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | BI menambah proteksi bot | User-Agent jujur, jeda 1,5 detik, backoff; cadangan runner di Indonesia |
 | Scheduled workflow nonaktif setelah 60 hari tanpa aktivitas repo | Freshness check + ringkasan harian; commit berkala |
 | R2 > 10 GB | Raw gzip; dipantau |
+| Jadwal GitHub Actions terlambat berjam-jam (terukur ±9,5 jam, 2 Nov) | Freshness memakai toleransi 3 hari kerja & 30 jam; Telegram tetap jadi heartbeat; opsi scheduler eksternal |
 | Kredit cloud habis 5 Nov | Kerjakan F1–F3 dulu; sisanya kuota paket |
 | Data aneh (Modern = Tradisional, NULL di 2017) | Cek di staging; dokumentasikan keterbatasan di web |
 
@@ -155,7 +161,8 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 
 - [ ] Backfill kab/kota (45.878 request, ±19–32 jam): kapan dijalankan, dan perlukah daftar kab/kota historis (`GetRefRegency` hanya kondisi sekarang)?
 - [ ] Warehouse tambahan untuk query ad-hoc: MotherDuck, BigQuery, atau cukup DuckDB + Parquet di R2?
-- [ ] Cron `extract` (15.00 WIB) belum pernah terpicu sejak di-merge 1 Nov: run 2 Nov tidak ada. Pantau 3 Nov; bila tetap tidak jalan, cek status jadwal di tab Actions atau picu ulang dengan commit kecil ke `main`
+- [x] ~~Cron `extract` belum pernah terpicu~~ — terjawab 3 Nov: cron 2 Nov terpicu, hanya terlambat ±9,5 jam (lihat Log keputusan)
+- [ ] Keterlambatan cron ±9,5–10 jam: terima saja, majukan jadwal (mis. 04.00 UTC agar tetap tayang sore WIB), atau picu lewat scheduler eksternal (`workflow_dispatch` dari cron-job.org/Cloudflare Worker)? Pantau beberapa hari dulu; bila selisih extract ↔ freshness pernah terbalik, freshness bisa alarm palsu
 - [ ] Sumber nilai HET (beras, Minyakita, gula) dan tanggal berlakunya (seed `transform/seeds/het_komoditas.csv` siap, masih kosong)
 
 ## Log keputusan
@@ -191,3 +198,4 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | 2 Nov 2026 | Hosting GitHub Pages; Parquet marts ikut disajikan dari origin situs untuk halaman Jelajahi | Tanpa bucket R2 publik/CORS dan tanpa secret baru; pembacaan Parquet via HTTP range |
 | 2 Nov 2026 | Outlier juga = harga > Rp1 juta/kg | Salah input berkepanjangan (Bengkulu produsen daging sapi Rp12 juta/kg sebulan) mencemari median jendela sehingga aturan relatif saja tidak cukup |
 | 2 Nov 2026 | Workflow produksi memasang dependency minimum: extract/backfill/probe/freshness `--no-default-groups`, transform/web `--group transform`; grup `dev` (+`transform`) tetap default untuk lokal & CI | Run harian tidak perlu dbt/duckdb/pytest; lebih cepat dan permukaan dependency lebih kecil |
+| 3 Nov 2026 | Keterlambatan cron ±9,5 jam dicatat sebagai risiko, belum diubah jadwalnya | Run terjadwal pertama tetap sukses penuh dan rantai transform/web/freshness berurutan benar; perlu data beberapa hari sebelum memilih solusi |
