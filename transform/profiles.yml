@@ -5,3 +5,6 @@ pihps:
       type: duckdb
       path: "{{ env_var('PIHPS_DUCKDB_PATH', 'target/pihps.duckdb') }}"
       threads: 4
+      settings:
+        memory_limit: "{{ env_var('PIHPS_DUCKDB_MEMORY_LIMIT', '8GB') }}"
+        preserve_insertion_order: false

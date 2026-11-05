@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from pihps.config import PRICE_TYPES
+from pihps.extract import RATIO_CHECK
 
 log = logging.getLogger("backfill")
 
@@ -58,10 +59,32 @@ def _job_key(price_type: int | str, start: str, end: str) -> tuple[str, str, str
     return (str(price_type), start, end)
 
 
+def only_empty_ratio(manifest: dict[str, Any]) -> bool:
+    """Job "gagal" hanya karena rasio kosong melewati ambang: tanpa request gagal, tidak
+    dihentikan circuit breaker, dan satu-satunya silent failure adalah cek rasio.
+
+    Di backfill ini wajar untuk tahun-tahun awal (data pasar modern/produsen jarang sebelum
+    2019): semua respons tersimpan, jadi job dihitung sukses dengan peringatan, bukan gagal.
+    """
+    s = manifest["summary"]
+    sf = manifest.get("silent_failures", [])
+    return (
+        manifest["status"] != "success"
+        and not s["failed"]
+        and not s.get("aborted")
+        and bool(sf)
+        and all(x.get("check") == RATIO_CHECK for x in sf)
+    )
+
+
 def summarize(
     jobs: list[dict[str, Any]], manifests: list[dict[str, Any]]
 ) -> tuple[str, bool, dict[str, Any]]:
-    """Gabungkan manifest semua job. Kembalikan (teks laporan, semua_ok, angka total)."""
+    """Gabungkan manifest semua job. Kembalikan (teks laporan, semua_ok, angka total).
+
+    `semua_ok` = setiap job punya manifest dan sukses, atau hanya melewati ambang kosong
+    (lihat `only_empty_ratio`; dilaporkan sebagai peringatan).
+    """
     by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
     for m in manifests:
         p = m["params"]
@@ -71,6 +94,7 @@ def summarize(
     totals = {
         "jobs": len(jobs),
         "success": 0,
+        "warned": 0,
         "failed": 0,
         "missing": 0,
         "requests": 0,
@@ -81,6 +105,7 @@ def summarize(
         "duration_s": 0.0,
     }
     problems: list[str] = []
+    warnings: list[str] = []
     empty_by_slug: dict[str, int] = {}
     for job in jobs:
         m = by_key.get(_job_key(job["price_type"], job["start"], job["end"]))
@@ -89,7 +114,14 @@ def summarize(
             problems.append(f"• {job['name']}: tidak ada manifest (dibatalkan/crash)")
             continue
         s = m["summary"]
-        totals["success" if m["status"] == "success" else "failed"] += 1
+        if m["status"] == "success":
+            totals["success"] += 1
+        elif only_empty_ratio(m):
+            totals["warned"] += 1
+            reasons = "; ".join(sf["reason"] for sf in m["silent_failures"])
+            warnings.append(f"• {job['name']}: {reasons}")
+        else:
+            totals["failed"] += 1
         totals["requests"] += s["requests_total"]
         totals["failed_requests"] += s["failed"]
         empty = sum(s.get("grid_empty_by_level", {}).values())
@@ -98,7 +130,7 @@ def summarize(
         totals["records"] += s["records_total"]
         totals["bytes"] += s["bytes_total"]
         totals["duration_s"] += s["duration_s"]
-        if m["status"] != "success":
+        if m["status"] != "success" and not only_empty_ratio(m):
             reasons = [sf["reason"] for sf in m.get("silent_failures", [])]
             if s.get("aborted"):
                 reasons.append("aborted")
@@ -106,11 +138,12 @@ def summarize(
                 reasons.append(f"{s['failed']} request gagal")
             problems.append(f"• {job['name']}: {'; '.join(reasons) or m['status']}")
 
-    ok = totals["success"] == totals["jobs"]
-    icon = "✅" if ok else "❌"
+    done = totals["success"] + totals["warned"]
+    ok = done == totals["jobs"]
+    icon = ("⚠️" if totals["warned"] else "✅") if ok else "❌"
     hours = totals["duration_s"] / 3600
     lines = [
-        f"{icon} PIHPS backfill ({totals['success']}/{totals['jobs']} job sukses)",
+        f"{icon} PIHPS backfill ({done}/{totals['jobs']} job sukses)",
         f"Rentang {min((j['start'] for j in jobs), default='-')} … "
         f"{max((j['end'] for j in jobs), default='-')}",
         f"{totals['requests']} request, {totals['failed_requests']} gagal, "
@@ -119,6 +152,13 @@ def summarize(
     ]
     if empty_by_slug:
         lines.append("Kosong per jenis pasar: " + json.dumps(empty_by_slug))
+    if warnings:
+        lines.append(
+            f"{totals['warned']} job melewati ambang kosong (tanpa request gagal, data tersimpan):"
+        )
+        lines += warnings[:15]
+        if len(warnings) > 15:
+            lines.append(f"… dan {len(warnings) - 15} lainnya")
     if totals["failed"] or totals["missing"]:
         lines.append(f"{totals['failed']} job gagal, {totals['missing']} tanpa manifest:")
         lines += problems[:15]

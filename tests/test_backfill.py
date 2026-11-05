@@ -96,6 +96,42 @@ def test_summarize_reports_failed_and_missing():
     assert "pasar_tradisional-2024: tidak ada manifest" in report
 
 
+RATIO_SF = {"check": "rasio (gagal + kosong) / request harga", "reason": "0 gagal + 60 kosong"}
+
+
+def test_summarize_empty_ratio_only_is_warning():
+    # Tahun awal yang memang jarang datanya: hanya ambang kosong terlampaui -> peringatan.
+    jobs = plan_jobs(date(2025, 1, 1), date(2026, 3, 31), [4])
+    manifests = [
+        _manifest(4, jobs[0]["start"], jobs[0]["end"]),
+        _manifest(4, jobs[1]["start"], jobs[1]["end"], status="failed", empty=60, sf=[RATIO_SF]),
+    ]
+    report, ok, totals = summarize(jobs, manifests)
+    assert ok
+    assert (totals["success"], totals["warned"], totals["failed"]) == (1, 1, 0)
+    assert report.startswith("⚠️ PIHPS backfill (2/2 job sukses)")
+    assert "1 job melewati ambang kosong" in report
+    assert "• produsen-2025: 0 gagal + 60 kosong" in report
+    assert "job gagal" not in report
+
+
+def test_summarize_empty_ratio_with_failures_stays_failed():
+    jobs = plan_jobs(date(2026, 1, 1), date(2026, 3, 31), [4])
+    sentinel = {"check": "grid_daerah nasional pasar_tradisional", "reason": "respons kosong"}
+    cases = [
+        dict(failed=2, sf=[RATIO_SF]),  # ada request gagal: data hilang
+        dict(aborted=True, sf=[RATIO_SF]),  # dihentikan circuit breaker
+        dict(sf=[RATIO_SF, sentinel]),  # silent failure lain
+        dict(sf=[]),  # status failed tanpa alasan yang dikenali
+    ]
+    for case in cases:
+        m = _manifest(4, jobs[0]["start"], jobs[0]["end"], status="failed", **case)
+        report, ok, totals = summarize(jobs, [m])
+        assert not ok, case
+        assert (totals["warned"], totals["failed"]) == (0, 1), case
+        assert report.startswith("❌"), case
+
+
 def test_cli_plan_and_summary(tmp_path, capsys):
     assert (
         main(["plan", "--first", "2025-11-01", "--last", "2026-01-31", "--price-types", "1"]) == 0

@@ -1,6 +1,6 @@
 # Rencana Project PIHPS Harga Pangan
 
-_Dokumen hidup. Terakhir diperbarui: 3 Nov 2026 (cron dua jadwal, backfill kab/kota berjalan). Perbarui bagian **Status** dan **Log keputusan**
+_Dokumen hidup. Terakhir diperbarui: 5 Nov 2026 (backfill kab/kota selesai, transform OOM diperbaiki). Perbarui bagian **Status** dan **Log keputusan**
 setiap kali fase selesai atau keputusan berubah._
 
 ## Ringkasan
@@ -23,12 +23,14 @@ mudah dipahami masyarakat awam.
 | F0 Fondasi | Repo, endpoint terdokumentasi, probe lolos 18/19 dari runner GitHub, R2 & Telegram siap | Selesai 1 Nov |
 | F1 Ingestion harian | Extractor raw + manifest, cron 10.23 WIB (ringan) + 15.23 WIB (penuh), ambil ulang 7 hari | Selesai 1 Nov (PR #1). Run e2e lolos: 685/685 request, 17 menit, 686 objek di R2, Telegram terkirim. Cron harian terbukti jalan: run terjadwal pertama 2 Nov ([run 41492692040](https://github.com/hafidznrg/PIHPS/actions/runs/41492692040)) lolos 685/685 request, 13.026 record, Telegram terkirim, lalu `transform` → `web` otomatis hijau — tetapi terpicu 17.36 UTC, ±9,5 jam setelah jadwal 08.00 UTC; sejak 3 Nov dua jadwal (lihat Log keputusan) |
 | F2 Transformasi | dbt-duckdb: staging, marts, tes kualitas data | Selesai 2 Nov (PR #3). Data penuh: 8,74 juta baris staging 2017-06-01 → 2026-10-30, 203 wilayah; dbt 130 detik; 196 sel outlier ditandai; Parquet + 239 file serving di R2; Telegram terkirim |
-| F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Selesai 2 Nov untuk nasional + provinsi: backfill 40/40 job, 15.940 request, 0 gagal, 403.985 record, 8,2 jam ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499)); workflow `freshness` harian (PR #3). Backfill kab/kota historis berjalan sejak 3 Nov 07.58 UTC ([run 41599876428](https://github.com/hafidznrg/PIHPS/actions/runs/41599876428)): 40 job, ±46 ribu request, perkiraan ±20 jam, daftar kab/kota kondisi sekarang |
+| F3 Alert & backfill | Kegagalan senyap, freshness check, backfill bertahap sejak 2017-06-01 | Selesai 2 Nov untuk nasional + provinsi: backfill 40/40 job, 15.940 request, 0 gagal, 403.985 record, 8,2 jam ([run 41371527499](https://github.com/hafidznrg/PIHPS/actions/runs/41371527499)); workflow `freshness` harian (PR #3). Backfill kab/kota selesai 4 Nov 05.27 UTC ([run 41599876428](https://github.com/hafidznrg/PIHPS/actions/runs/41599876428)): 40/40 job jalan, 47.358 request, 2 gagal (produsen 2017), 7.366 kosong, 883.179 record, 460,5 MB mentah, 21,3 jam, daftar kab/kota kondisi sekarang. Transform sesudahnya OOM (12,4/12,4 GiB) sampai diperbaiki 5 Nov (lihat Log keputusan); run uji dari branch ([run 41944489711](https://github.com/hafidznrg/PIHPS/actions/runs/41944489711)) lolos: 27,8 juta baris staging, 205 wilayah, dbt 243 detik |
 | F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Selesai 2 Nov (PR #3): tayang di <https://hafidznrg.github.io/PIHPS/>; deploy pertama dari `main` sukses (240 halaman, kontrak & 14 e2e data nyata lolos). 3 Nov: perbaikan kecepatan, beranda berhierarki insight, dan peta SVG tanpa distorsi (PR branch `claude/magical-wright-nuumv7`). Berikutnya: HET (menunggu sumber nilai) |
 | F5 Analisis & publikasi | Volatilitas, disparitas, musiman, margin rantai pasok; README akhir | Belum |
 
-Kondisi operasional per 3 Nov 2026: semua PR (#1–#4) sudah di-merge, tidak ada PR terbuka. Rantai
-harian `extract` → `transform` → `web` dan `freshness` terjadwal berjalan hijau. Run terjadwal GitHub Actions terlambat ±9,5–10 jam (extract 17.36 UTC,
+Kondisi operasional per 5 Nov 2026: `extract` harian dan `freshness` hijau. `transform` di `main`
+gagal OOM sejak data kab/kota masuk (3 run, 4 Nov) sehingga R2 & web tertahan di build 3 Nov
+(data s.d. 3 Nov) sampai PR perbaikan memori di-merge; setelah merge, run `transform` berikutnya
+memperbarui R2 dan web. Sebelumnya rantai harian `extract` → `transform` → `web` berjalan hijau. Run terjadwal GitHub Actions terlambat ±9,5–10 jam (extract 17.36 UTC,
 freshness 20.30 UTC pada 2 Nov), sehingga data di web baru diperbarui sekitar 00.30–01.00 WIB hari
 berikutnya. Mitigasi sejak 3 Nov: run pagi ringan (nasional + provinsi) ditambah run sore penuh.
 
@@ -91,6 +93,17 @@ Temuan backfill (2 Nov): respons kosong per jenis pasar tradisional 20, modern 5
 31, produsen 633 dari 3.985 request masing-masing. Tiga job melewati ambang kosong 50% (job tetap
 hijau, data tersimpan): pasar modern 2018 (51%), produsen 2018 (60%), produsen 2017 (97%) — data
 produsen praktis baru ada sejak 2019, pasar modern jarang sebelum 2019.
+
+Temuan backfill kab/kota (4 Nov): respons kosong tradisional 1.094, modern 2.124, pedagang besar
+738, produsen 3.410. Lima job melewati ambang kosong 50%: pasar modern 2017 (59,5%), 2018
+(58,7%), 2019 (52,7%), produsen 2018 (68,4%), produsen 2017 (100%, termasuk 2 request gagal).
+Pola sama dengan level provinsi. Hasil staging penuh (5 Nov, nasional + provinsi + kab/kota):
+27,8 juta baris (27,0 juta berharga), 205 wilayah di data (dim_wilayah 206: 171 kab/kota, 34
+provinsi, nasional); baris per jenis pasar: tradisional 9,99 juta (145 wilayah), modern 5,93 juta
+(113), pedagang besar 7,45 juta (108, mulai 2017-06-08), produsen 4,44 juta (175, mulai
+2018-03-26). 13.492 sel direvisi; 695 sel outlier ditandai (≤ 0,004%); tes warn: 289 sel di
+luar rentang wajar (terbesar produsen com_9 Rp12 juta, prov-7 dan kab-17, Sep 2021) dan 1.630
+lonjakan harian > 3× (1.046 di produsen). Serving 241 file, 20,3 MB (sebelumnya 16,0 MB).
 
 Temuan F2 (staging penuh pasar tradisional 2017–2026, 3,15 juta baris):
 
@@ -210,3 +223,5 @@ Detail layout raw: `docs/raw-layout.md`; detail model & tes: `transform/README.m
 | 3 Nov 2026 | Peta = SVG build-time; skala diverging vs rata-rata nasional, kelas tetap ±5%/±15% (biru murah, abu setara, merah mahal), bukan gradasi kontinu min–max | Diputuskan pemilik project. Peta lama terdistorsi (ECharts merentang ke kotak wadah) dan butuh ±900 KB JS+GeoJSON. Ambang tetap membuat arti warna sama di semua komoditas dan memisahkan "mencolok sekali" dari "sedikit"; pola diverging dengan titik tengah netral pada rata-rata mengikuti praktik Datawrapper/Esri untuk cerita di atas–di bawah rata-rata |
 | 3 Nov 2026 | Optimasi web tanpa mengubah kontrak serving: panel 4 jenis pasar dirender saat build, file view grafik dibuat saat build, font Newsreader sumbu `wght` + preload | Kontrak serving tetap stabil bagi pipeline; penghematan terbesar ada di sisi situs. Dievaluasi lagi bila wilayah/<kode>.json perlu dipecah di serving |
 | 3 Nov 2026 | Backfill kab/kota dijalankan dengan daftar `GetRefRegency` kondisi sekarang: workflow `backfill` yang ada, `levels=kabkota`, 2017-06-01 → 2026-10-31, matriks 40 job, `max-parallel: 1` | Diputuskan pemilik project. Tanpa perubahan kode; kab/kota yang sudah hilang dari daftar PIHPS tidak terambil (keterbatasan didokumentasikan). Kapasitas cukup: transform 3,5 dari 60 menit, situs 14,7 MB |
+| 5 Nov 2026 | DuckDB dibatasi di `profiles.yml`: `memory_limit` 8GB (env `PIHPS_DUCKDB_MEMORY_LIMIT`), `preserve_insertion_order: false`; `stg_pihps__manifest_files` & `stg_pihps__harga_raw` jadi tabel (JSON di-parse sekali) | Transform OOM setelah kab/kota masuk. Direproduksi dengan raw sintetis seukuran produksi (38 juta baris): RSS puncak 11,8 GB pada batas default. Sesudah perbaikan, dengan batas 5 GB: RSS 5,4 GB, 404 detik (data 1×) dan 897 detik (data 2×, 67 juta baris), jadi ada ruang tumbuh. Di Actions dengan data nyata: dbt 243 detik (sebelumnya gagal setelah ±5,5 menit) |
+| 5 Nov 2026 | Summary backfill: job yang hanya melewati ambang kosong (tanpa request gagal, tanpa circuit breaker, tanpa silent failure lain) = sukses dengan peringatan ⚠️ | Konsisten dengan keputusan 2 Nov (data tahun awal memang jarang); sebelumnya summary selalu merah (37/40, 35/40) walau semua respons tersimpan. Request gagal tetap membuat summary gagal |
