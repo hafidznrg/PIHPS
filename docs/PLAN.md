@@ -27,10 +27,11 @@ mudah dipahami masyarakat awam.
 | F4 Web visualisasi | Harga hari ini, peta provinsi, tren, perbandingan HET | Selesai 2 Nov (PR #3): tayang di <https://hafidznrg.github.io/PIHPS/>; deploy pertama dari `main` sukses (240 halaman, kontrak & 14 e2e data nyata lolos). 3 Nov: perbaikan kecepatan, beranda berhierarki insight, dan peta SVG tanpa distorsi (PR branch `claude/magical-wright-nuumv7`). Berikutnya: HET (menunggu sumber nilai) |
 | F5 Analisis & publikasi | Volatilitas, disparitas, musiman, margin rantai pasok; README akhir | Belum |
 
-Kondisi operasional per 5 Nov 2026: `extract` harian dan `freshness` hijau. `transform` di `main`
-gagal OOM sejak data kab/kota masuk (3 run, 4 Nov) sehingga R2 & web tertahan di build 3 Nov
-(data s.d. 3 Nov) sampai PR perbaikan memori di-merge; setelah merge, run `transform` berikutnya
-memperbarui R2 dan web. Sebelumnya rantai harian `extract` → `transform` → `web` berjalan hijau. Run terjadwal GitHub Actions terlambat ±9,5–10 jam (extract 17.36 UTC,
+Kondisi operasional per 5 Nov 2026: PR #8 (perbaikan memori transform) di-merge; rantai pulih.
+`transform` di `main` sempat gagal OOM sejak data kab/kota masuk (3 run, 4 Nov; R2 & web tertahan
+di build 3 Nov). Run manual setelah merge ([run 41952153006](https://github.com/hafidznrg/PIHPS/actions/runs/41952153006))
+hijau: 27,8 juta baris staging, publish 371 file (133,5 MB) ke R2, Telegram terkirim, lalu `web`
+build + deploy hijau. `extract` harian dan `freshness` hijau. Run terjadwal GitHub Actions terlambat ±9,5–10 jam (extract 17.36 UTC,
 freshness 20.30 UTC pada 2 Nov), sehingga data di web baru diperbarui sekitar 00.30–01.00 WIB hari
 berikutnya. Mitigasi sejak 3 Nov: run pagi ringan (nasional + provinsi) ditambah run sore penuh.
 
