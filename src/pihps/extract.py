@@ -49,6 +49,8 @@ SENTINEL_PRICE_TYPE = 1
 # Ambang silent failure kedua (docs/PLAN.md): (gagal + kosong) / total request harga.
 MAX_EMPTY_OR_FAILED_RATIO = 0.10
 EMPTY_COUNTED_LEVELS = ("provinsi", "kabkota")
+# Nama cek silent failure rasio; dipakai pihps.backfill untuk membedakan "hanya kosong".
+RATIO_CHECK = "rasio (gagal + kosong) / request harga"
 # Circuit breaker: hentikan run setelah sekian kegagalan beruntun (server menolak/mati,
 # atau R2 bermasalah) supaya tidak terus mengirim ratusan request x retry.
 MAX_CONSECUTIVE_FAILURES = 10
@@ -458,7 +460,7 @@ class Extractor:
         ratio = (n_failed + n_empty) / len(grid) if grid else 0.0
         if ratio > self.max_empty_ratio:
             item = {
-                "check": "rasio (gagal + kosong) / request harga",
+                "check": RATIO_CHECK,
                 "start_date": self.params.start.isoformat(),
                 "end_date": self.params.end.isoformat(),
                 "reason": (
