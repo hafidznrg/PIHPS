@@ -1,6 +1,10 @@
+{{ config(materialized='table') }}
 -- Format lebar GetGridDataDaerah -> panjang, sebelum dedup. Satu baris per
 -- (file raw, komoditas, tanggal). Dipisah dari stg_pihps__harga agar tes parsing
 -- (harga_raw yang tidak bisa diparse) melihat semua nilai, bukan hanya versi terbaru.
+-- Tabel (bukan view): JSON raw di-parse sekali saja. Sebagai view, setiap tes dan
+-- stg_pihps__harga mem-parse ulang puluhan ribu file (masing-masing 2-4 menit setelah
+-- backfill kab/kota) dan dedup harus menahan pipeline parsing di memori.
 with records as (
     {{ raw_records("endpoint=grid_daerah/*/*/*/*.json.gz", "GetGridDataDaerah") }}
       and m.records > 0

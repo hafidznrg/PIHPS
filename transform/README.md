@@ -17,7 +17,11 @@ uv run python -m pihps.transform build --raw-dir data -- --select stg_pihps__har
    file yang sudah ada di disk (ukuran = `gz_bytes`) tidak diunduh ulang; workflow menyimpan
    `data/raw` di cache Actions.
 2. **build** — `dbt build` penuh setiap run (seed → model → tes). DuckDB membaca raw lokal;
-   model `external` menulis Parquet ke `data/out/`.
+   model `external` menulis Parquet ke `data/out/`. Memori DuckDB dibatasi di
+   `profiles.yml` (`memory_limit`, default 8GB, ubah lewat env `PIHPS_DUCKDB_MEMORY_LIMIT`;
+   `preserve_insertion_order: false`) agar operator besar menumpah ke disk alih-alih OOM di
+   runner 16 GB. Manifest dan JSON raw di-parse **sekali** ke tabel DuckDB
+   (`stg_pihps__manifest_files`, `stg_pihps__harga_raw`); semua model & tes membaca tabel itu.
 3. **publish** — hanya bila tidak ada tes `error`: unggah `data/out/{staging,marts}/` ke R2
    dengan key yang sama, lalu hapus objek basi di prefix itu. `marts/_build.json` mencatat
    waktu build, git sha, hasil tes, dan profil data.
@@ -26,8 +30,8 @@ uv run python -m pihps.transform build --raw-dir data -- --select stg_pihps__har
 
 | Model | Lokasi R2 | Grain / isi |
 | --- | --- | --- |
-| `stg_pihps__manifest_files` | (view) | satu baris per file per manifest |
-| `stg_pihps__harga_raw` | (view) | format panjang sebelum dedup: file raw × komoditas × tanggal |
+| `stg_pihps__manifest_files` | (tabel DuckDB) | satu baris per file per manifest |
+| `stg_pihps__harga_raw` | (tabel DuckDB) | format panjang sebelum dedup: file raw × komoditas × tanggal |
 | `stg_pihps__ref_*` | (view) | semua snapshot referensi (komoditas, provinsi, kab/kota, jenis pasar) |
 | `stg_pihps__harga` | `staging/stg_pihps__harga/tahun=…/bulan=…/` | tanggal × jenis_pasar × kode_wilayah × komoditas_id, dedup *latest wins* |
 | `fct_harga_harian` | `marts/fct_harga_harian/tahun=…/` | sama, hanya sel berharga, + `wilayah_sk` SCD2 |

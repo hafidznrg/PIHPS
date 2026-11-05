@@ -1,5 +1,8 @@
+{{ config(materialized='table') }}
 -- Satu baris per file di setiap manifest run (raw/pihps/_manifests/**/_manifest.json).
 -- Manifest adalah sumber kebenaran staging: hanya file dengan ok = true yang dibaca.
+-- Tabel (bukan view): dipakai banyak model & tes sekaligus; sebagai view setiap pemakai
+-- mem-parse ulang semua manifest JSON (buffer besar per thread -> tekanan memori).
 with manifests as (
     select
         run_id,
